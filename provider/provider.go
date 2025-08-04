@@ -2,10 +2,14 @@ package provider
 
 import (
 	"context"
+	"os"
 
+	"github.com/cresta/terraform-provider-langfuse/langfuse"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
+	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 var _ provider.Provider = &langfuseProvider{}
@@ -14,16 +18,53 @@ type langfuseProvider struct {
 	version string
 }
 
-func (p *langfuseProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
+type langfuseProviderModel struct {
+	Host        types.String `tfsdk:"host"`
+	AdminAPIKey types.String `tfsdk:"admin_api_key"`
+}
 
+func (p *langfuseProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
+	resp.TypeName = "langfuse"
+	resp.Version = p.version
 }
 
 func (p *langfuseProvider) Schema(ctx context.Context, req provider.SchemaRequest, resp *provider.SchemaResponse) {
-
+	resp.Schema = schema.Schema{
+		Attributes: map[string]schema.Attribute{
+			"host": schema.StringAttribute{
+				Optional:    true,
+				Description: "Base URI of the Langfuse instance (defaults to https://app.langfuse.com).",
+			},
+			"admin_api_key": schema.StringAttribute{
+				Optional:    true,
+				Sensitive:   true,
+				Description: "Admin API key. Only needed when managing organizations. Can also come from LANGFUSE_API_KEY.",
+			},
+		},
+	}
 }
 
 func (p *langfuseProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	// TODO: Implement the configuration
+	var config langfuseProviderModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &config)...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	host := "https://app.langfuse.com"
+	if config.Host.String() != "" {
+		host = config.Host.ValueString()
+	}
+
+	apiKey := os.Getenv("LANGFUSE_API_KEY")
+	if config.AdminAPIKey.String() != "" {
+		apiKey = config.AdminAPIKey.ValueString()
+	}
+
+	clientFactory := langfuse.NewClientFactory(host, apiKey)
+	resp.DataSourceData = clientFactory
+	resp.ResourceData = clientFactory
 }
 
 func (p *langfuseProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
@@ -31,5 +72,16 @@ func (p *langfuseProvider) DataSources(ctx context.Context) []func() datasource.
 }
 
 func (p *langfuseProvider) Resources(ctx context.Context) []func() resource.Resource {
-	return []func() resource.Resource{}
+	return []func() resource.Resource{
+		NewOrganizationResource,
+		NewOrganizationApiKeyResource,
+		NewProjectResource,
+		NewProjectApiKeyResource,
+	}
+}
+
+func New(version string) func() provider.Provider {
+	return func() provider.Provider {
+		return &langfuseProvider{version: version}
+	}
 }
