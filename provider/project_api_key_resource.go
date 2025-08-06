@@ -121,7 +121,7 @@ func (r *projectApiKeyResource) Read(ctx context.Context, req resource.ReadReque
 	}
 
 	organizationClient := r.ClientFactory.NewOrganizationClient(data.OrganizationPublicKey.ValueString(), data.OrganizationPrivateKey.ValueString())
-	_, err := organizationClient.GetProject(ctx, data.ProjectID.ValueString())
+	_, err := organizationClient.GetProjectApiKey(ctx, data.ProjectID.ValueString(), data.ID.ValueString())
 	if err != nil {
 		resp.State.RemoveResource(ctx)
 		return

@@ -21,10 +21,12 @@ type UpdateOrganizationRequest struct {
 	Metadata map[string]string `json:"metadata"`
 }
 
+//go:generate mockgen -destination=./mocks/mock_admin_client.go -package=mocks github.com/cresta/terraform-provider-langfuse/langfuse AdminClient
+
 type AdminClient interface {
 	GetOrganization(ctx context.Context, orgID string) (*Organization, error)
 	CreateOrganization(ctx context.Context, name string) (*Organization, error)
-	UpdateOrganization(ctx context.Context, orgID string, request UpdateOrganizationRequest) (*Organization, error)
+	UpdateOrganization(ctx context.Context, orgID string, request *UpdateOrganizationRequest) (*Organization, error)
 	DeleteOrganization(ctx context.Context, orgID string) error
 	GetOrganizationApiKey(ctx context.Context, orgID string, apiKeyID string) (*OrganizationApiKey, error)
 	CreateOrganizationApiKey(ctx context.Context, orgID string) (*OrganizationApiKey, error)
@@ -52,7 +54,7 @@ func (c *adminClientImpl) CreateOrganization(ctx context.Context, name string) (
 	return nil, nil
 }
 
-func (c *adminClientImpl) UpdateOrganization(ctx context.Context, orgID string, request UpdateOrganizationRequest) (*Organization, error) {
+func (c *adminClientImpl) UpdateOrganization(ctx context.Context, orgID string, request *UpdateOrganizationRequest) (*Organization, error) {
 	return nil, nil
 }
 

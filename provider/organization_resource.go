@@ -25,7 +25,7 @@ type organizationResource struct {
 }
 
 func (r *organizationResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	r.AdminClient = req.ProviderData.(*langfuse.ClientFactory).NewAdminClient()
+	r.AdminClient = req.ProviderData.(langfuse.ClientFactory).NewAdminClient()
 }
 
 func (r *organizationResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -94,10 +94,11 @@ func (r *organizationResource) Update(ctx context.Context, req resource.UpdateRe
 		return
 	}
 
-	opts := langfuse.UpdateOrganizationRequest{}
-	opts.Name = data.Name.ValueString()
+	request := &langfuse.UpdateOrganizationRequest{
+		Name: data.Name.ValueString(),
+	}
 
-	org, err := r.AdminClient.UpdateOrganization(ctx, data.ID.ValueString(), opts)
+	org, err := r.AdminClient.UpdateOrganization(ctx, data.ID.ValueString(), request)
 	if err != nil {
 		resp.Diagnostics.AddError("Error updating organization", err.Error())
 		return

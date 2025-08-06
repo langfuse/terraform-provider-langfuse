@@ -14,7 +14,7 @@ import (
 var _ resource.Resource = &projectResource{}
 
 func NewProjectResource() resource.Resource {
-	return &organizationResource{}
+	return &projectResource{}
 }
 
 type projectResourceModel struct {
@@ -47,7 +47,7 @@ func (r *projectResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Required:    true,
 				Description: "The display name of the project.",
 			},
-			"retention": schema.Int64Attribute{
+			"retention": schema.Int32Attribute{
 				Optional:    true,
 				Description: "The retention period for the project in days. If not set, or set with a value of 0, data will be stored indefinitely.",
 			},
@@ -132,11 +132,12 @@ func (r *projectResource) Update(ctx context.Context, req resource.UpdateRequest
 
 	organizationClient := r.ClientFactory.NewOrganizationClient(data.OrganizationPublicKey.ValueString(), data.OrganizationPrivateKey.ValueString())
 
-	opts := langfuse.UpdateProjectRequest{}
-	opts.Name = data.Name.ValueString()
-	opts.Retention = data.Retention.ValueInt32()
+	request := &langfuse.UpdateProjectRequest{
+		Name:      data.Name.ValueString(),
+		Retention: data.Retention.ValueInt32(),
+	}
 
-	project, err := organizationClient.UpdateProject(ctx, data.ID.ValueString(), opts)
+	project, err := organizationClient.UpdateProject(ctx, data.ID.ValueString(), request)
 	if err != nil {
 		resp.Diagnostics.AddError("Error updating project", err.Error())
 		return

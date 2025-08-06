@@ -1,21 +1,26 @@
 package langfuse
 
-type ClientFactory struct {
+type clientFactoryImpl struct {
 	host        string
 	adminApiKey string
 }
 
-func NewClientFactory(host, adminApiKey string) *ClientFactory {
-	return &ClientFactory{
+type ClientFactory interface {
+	NewAdminClient() AdminClient
+	NewOrganizationClient(publicKey, privateKey string) OrganizationClient
+}
+
+func NewClientFactory(host, adminApiKey string) ClientFactory {
+	return &clientFactoryImpl{
 		host:        host,
 		adminApiKey: adminApiKey,
 	}
 }
 
-func (cf *ClientFactory) NewAdminClient() AdminClient {
+func (cf *clientFactoryImpl) NewAdminClient() AdminClient {
 	return NewAdminClient(cf.host, cf.adminApiKey)
 }
 
-func (cf *ClientFactory) NewOrganizationClient(publicKey, privateKey string) OrganizationClient {
+func (cf *clientFactoryImpl) NewOrganizationClient(publicKey, privateKey string) OrganizationClient {
 	return NewOrganizationClient(cf.host, publicKey, privateKey)
 }

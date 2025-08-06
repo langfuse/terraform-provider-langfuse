@@ -29,7 +29,7 @@ type organizationApiKeyResource struct {
 }
 
 func (r *organizationApiKeyResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
-	r.AdminClient = req.ProviderData.(*langfuse.ClientFactory).NewAdminClient()
+	r.AdminClient = req.ProviderData.(langfuse.ClientFactory).NewAdminClient()
 }
 
 func (r *organizationApiKeyResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {

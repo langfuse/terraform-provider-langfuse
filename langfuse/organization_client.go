@@ -23,10 +23,12 @@ type UpdateProjectRequest struct {
 	Metadata  map[string]string `json:"metadata"`
 }
 
+//go:generate mockgen -destination=./mocks/mock_organization_client.go -package=mocks github.com/cresta/terraform-provider-langfuse/langfuse OrganizationClient
+
 type OrganizationClient interface {
 	GetProject(ctx context.Context, projectID string) (*Project, error)
 	CreateProject(ctx context.Context, project Project) (*Project, error)
-	UpdateProject(ctx context.Context, projectID string, request UpdateProjectRequest) (*Project, error)
+	UpdateProject(ctx context.Context, projectID string, request *UpdateProjectRequest) (*Project, error)
 	DeleteProject(ctx context.Context, projectID string) error
 	GetProjectApiKey(ctx context.Context, projectID string, apiKeyID string) (*ProjectApiKey, error)
 	CreateProjectApiKey(ctx context.Context, projectID string) (*ProjectApiKey, error)
@@ -56,7 +58,7 @@ func (c *organizationClientImpl) CreateProject(ctx context.Context, project Proj
 	return nil, nil
 }
 
-func (c *organizationClientImpl) UpdateProject(ctx context.Context, projectID string, request UpdateProjectRequest) (*Project, error) {
+func (c *organizationClientImpl) UpdateProject(ctx context.Context, projectID string, request *UpdateProjectRequest) (*Project, error) {
 	return nil, nil
 }
 
