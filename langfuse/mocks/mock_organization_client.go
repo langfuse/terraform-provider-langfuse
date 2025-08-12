@@ -36,7 +36,7 @@ func (m *MockOrganizationClient) EXPECT() *MockOrganizationClientMockRecorder {
 }
 
 // CreateProject mocks base method.
-func (m *MockOrganizationClient) CreateProject(arg0 context.Context, arg1 langfuse.Project) (*langfuse.Project, error) {
+func (m *MockOrganizationClient) CreateProject(arg0 context.Context, arg1 *langfuse.CreateProjectRequest) (*langfuse.Project, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateProject", arg0, arg1)
 	ret0, _ := ret[0].(*langfuse.Project)
@@ -80,17 +80,17 @@ func (mr *MockOrganizationClientMockRecorder) DeleteProject(arg0, arg1 interface
 }
 
 // DeleteProjectApiKey mocks base method.
-func (m *MockOrganizationClient) DeleteProjectApiKey(arg0 context.Context, arg1 string) error {
+func (m *MockOrganizationClient) DeleteProjectApiKey(arg0 context.Context, arg1, arg2 string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteProjectApiKey", arg0, arg1)
+	ret := m.ctrl.Call(m, "DeleteProjectApiKey", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DeleteProjectApiKey indicates an expected call of DeleteProjectApiKey.
-func (mr *MockOrganizationClientMockRecorder) DeleteProjectApiKey(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockOrganizationClientMockRecorder) DeleteProjectApiKey(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteProjectApiKey", reflect.TypeOf((*MockOrganizationClient)(nil).DeleteProjectApiKey), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteProjectApiKey", reflect.TypeOf((*MockOrganizationClient)(nil).DeleteProjectApiKey), arg0, arg1, arg2)
 }
 
 // GetProject mocks base method.

@@ -115,7 +115,7 @@ func TestOrganizationResourceCRUD(t *testing.T) {
 	var createResp resource.CreateResponse
 	t.Run("Create", func(t *testing.T) {
 		clientFactory.AdminClient.EXPECT().
-			CreateOrganization(ctx, createName).
+			CreateOrganization(ctx, &langfuse.CreateOrganizationRequest{Name: createName}).
 			Return(&langfuse.Organization{ID: "org-123", Name: createName}, nil)
 
 		createConfig := tfsdk.Config{

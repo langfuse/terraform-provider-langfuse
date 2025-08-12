@@ -92,7 +92,7 @@ func TestOrganizationApiKeyResourceCRUD(t *testing.T) {
 
 	var createResp resource.CreateResponse
 	t.Run("Create", func(t *testing.T) {
-		clientFactory.AdminClient.EXPECT().CreateOrganizationApiKey(ctx, orgID).Return(&langfuse.OrganizationApiKey{ID: "oak-123", OrganizationID: orgID, PublicKey: "pub", SecretKey: "sec"}, nil)
+		clientFactory.AdminClient.EXPECT().CreateOrganizationApiKey(ctx, orgID).Return(&langfuse.OrganizationApiKey{ID: "oak-123", PublicKey: "pub", SecretKey: "sec"}, nil)
 
 		createConfig := tfsdk.Config{Raw: buildOrgApiKeyObjectValue(map[string]tftypes.Value{
 			"id":              tftypes.NewValue(tftypes.String, nil),
@@ -109,7 +109,7 @@ func TestOrganizationApiKeyResourceCRUD(t *testing.T) {
 
 	var readResp resource.ReadResponse
 	t.Run("Read", func(t *testing.T) {
-		clientFactory.AdminClient.EXPECT().GetOrganizationApiKey(ctx, orgID, "oak-123").Return(&langfuse.OrganizationApiKey{ID: "oak-123", OrganizationID: orgID}, nil)
+		clientFactory.AdminClient.EXPECT().GetOrganizationApiKey(ctx, orgID, "oak-123").Return(&langfuse.OrganizationApiKey{ID: "oak-123"}, nil)
 
 		readResp.State.Schema = resourceSchema
 		r.Read(ctx, resource.ReadRequest{State: createResp.State}, &readResp)

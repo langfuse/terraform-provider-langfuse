@@ -143,7 +143,7 @@ func (r *projectApiKeyResource) Delete(ctx context.Context, req resource.DeleteR
 	}
 
 	organizationClient := r.ClientFactory.NewOrganizationClient(data.OrganizationPublicKey.ValueString(), data.OrganizationPrivateKey.ValueString())
-	err := organizationClient.DeleteProjectApiKey(ctx, data.ProjectID.ValueString())
+	err := organizationClient.DeleteProjectApiKey(ctx, data.ProjectID.ValueString(), data.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error deleting project API key", err.Error())
 		return

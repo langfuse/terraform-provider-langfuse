@@ -103,7 +103,7 @@ func TestProjectApiKeyResourceCRUD(t *testing.T) {
 
 	var createResp resource.CreateResponse
 	t.Run("Create", func(t *testing.T) {
-		clientFactory.OrganizationClient.EXPECT().CreateProjectApiKey(ctx, projectID).Return(&langfuse.ProjectApiKey{ID: "pak-123", ProjectID: projectID, PublicKey: "pub", SecretKey: "sec"}, nil)
+		clientFactory.OrganizationClient.EXPECT().CreateProjectApiKey(ctx, projectID).Return(&langfuse.ProjectApiKey{ID: "pak-123", PublicKey: "pub", SecretKey: "sec"}, nil)
 
 		createConfig := tfsdk.Config{Raw: buildApiKeyObjectValue(map[string]tftypes.Value{
 			"id":                       tftypes.NewValue(tftypes.String, nil),
@@ -123,7 +123,7 @@ func TestProjectApiKeyResourceCRUD(t *testing.T) {
 
 	var readResp resource.ReadResponse
 	t.Run("Read", func(t *testing.T) {
-		clientFactory.OrganizationClient.EXPECT().GetProjectApiKey(ctx, projectID, "pak-123").Return(&langfuse.ProjectApiKey{ID: "pak-123", ProjectID: projectID, PublicKey: "pub", SecretKey: "sec"}, nil)
+		clientFactory.OrganizationClient.EXPECT().GetProjectApiKey(ctx, projectID, "pak-123").Return(&langfuse.ProjectApiKey{ID: "pak-123", PublicKey: "pub", SecretKey: "sec"}, nil)
 
 		readResp.State.Schema = resourceSchema
 		r.Read(ctx, resource.ReadRequest{State: createResp.State}, &readResp)
@@ -133,7 +133,7 @@ func TestProjectApiKeyResourceCRUD(t *testing.T) {
 	})
 
 	t.Run("Delete", func(t *testing.T) {
-		clientFactory.OrganizationClient.EXPECT().DeleteProjectApiKey(ctx, projectID).Return(nil)
+		clientFactory.OrganizationClient.EXPECT().DeleteProjectApiKey(ctx, projectID, "pak-123").Return(nil)
 
 		var deleteResp resource.DeleteResponse
 		deleteResp.State.Schema = resourceSchema

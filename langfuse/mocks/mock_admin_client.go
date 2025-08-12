@@ -36,7 +36,7 @@ func (m *MockAdminClient) EXPECT() *MockAdminClientMockRecorder {
 }
 
 // CreateOrganization mocks base method.
-func (m *MockAdminClient) CreateOrganization(arg0 context.Context, arg1 string) (*langfuse.Organization, error) {
+func (m *MockAdminClient) CreateOrganization(arg0 context.Context, arg1 *langfuse.CreateOrganizationRequest) (*langfuse.Organization, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateOrganization", arg0, arg1)
 	ret0, _ := ret[0].(*langfuse.Organization)

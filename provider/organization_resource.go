@@ -54,7 +54,7 @@ func (r *organizationResource) Create(ctx context.Context, req resource.CreateRe
 		return
 	}
 
-	org, err := r.AdminClient.CreateOrganization(ctx, data.Name.ValueString())
+	org, err := r.AdminClient.CreateOrganization(ctx, &langfuse.CreateOrganizationRequest{Name: data.Name.ValueString()})
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating organization", err.Error())
 		return

@@ -113,14 +113,14 @@ func TestProjectResourceCRUD(t *testing.T) {
 
 	var createResp resource.CreateResponse
 	t.Run("Create", func(t *testing.T) {
-		expectedProject := langfuse.Project{Name: createName, Retention: 0}
-		clientFactory.OrganizationClient.EXPECT().CreateProject(ctx, expectedProject).Return(&langfuse.Project{ID: "proj-123", Name: createName, Retention: 0}, nil)
+		createReq := &langfuse.CreateProjectRequest{Name: createName, RetentionDays: 0}
+		clientFactory.OrganizationClient.EXPECT().CreateProject(ctx, createReq).Return(&langfuse.Project{ID: "proj-123", Name: createName, RetentionDays: 0}, nil)
 
 		createConfig := tfsdk.Config{
 			Raw: buildProjectObjectValue(map[string]tftypes.Value{
 				"id":                       tftypes.NewValue(tftypes.String, nil),
 				"name":                     tftypes.NewValue(tftypes.String, createName),
-				"retention":                tftypes.NewValue(tftypes.Number, big.NewFloat(0)),
+				"retention_days":           tftypes.NewValue(tftypes.Number, big.NewFloat(0)),
 				"organization_public_key":  tftypes.NewValue(tftypes.String, publicKey),
 				"organization_private_key": tftypes.NewValue(tftypes.String, privateKey),
 			}),
@@ -135,7 +135,7 @@ func TestProjectResourceCRUD(t *testing.T) {
 
 	var readResp resource.ReadResponse
 	t.Run("Read", func(t *testing.T) {
-		clientFactory.OrganizationClient.EXPECT().GetProject(ctx, "proj-123").Return(&langfuse.Project{ID: "proj-123", Name: createName, Retention: 0}, nil)
+		clientFactory.OrganizationClient.EXPECT().GetProject(ctx, "proj-123").Return(&langfuse.Project{ID: "proj-123", Name: createName, RetentionDays: 0}, nil)
 
 		readResp.State.Schema = resourceSchema
 		r.Read(ctx, resource.ReadRequest{State: createResp.State}, &readResp)
@@ -148,13 +148,13 @@ func TestProjectResourceCRUD(t *testing.T) {
 	t.Run("Update", func(t *testing.T) {
 		newName := "ChatQA Plus"
 		newRetention := int32(30)
-		clientFactory.OrganizationClient.EXPECT().UpdateProject(ctx, "proj-123", &langfuse.UpdateProjectRequest{Name: newName, Retention: newRetention}).Return(&langfuse.Project{ID: "proj-123", Name: newName, Retention: newRetention}, nil)
+		clientFactory.OrganizationClient.EXPECT().UpdateProject(ctx, "proj-123", &langfuse.UpdateProjectRequest{Name: newName, RetentionDays: newRetention}).Return(&langfuse.Project{ID: "proj-123", Name: newName, RetentionDays: newRetention}, nil)
 
 		updateConfig := tfsdk.Config{
 			Raw: buildProjectObjectValue(map[string]tftypes.Value{
 				"id":                       tftypes.NewValue(tftypes.String, "proj-123"),
 				"name":                     tftypes.NewValue(tftypes.String, newName),
-				"retention":                tftypes.NewValue(tftypes.Number, big.NewFloat(float64(newRetention))),
+				"retention_days":           tftypes.NewValue(tftypes.Number, big.NewFloat(float64(newRetention))),
 				"organization_public_key":  tftypes.NewValue(tftypes.String, publicKey),
 				"organization_private_key": tftypes.NewValue(tftypes.String, privateKey),
 			}),
@@ -185,13 +185,13 @@ func buildProjectObjectValue(values map[string]tftypes.Value) tftypes.Value {
 			AttributeTypes: map[string]tftypes.Type{
 				"id":                       tftypes.String,
 				"name":                     tftypes.String,
-				"retention":                tftypes.Number,
+				"retention_days":           tftypes.Number,
 				"organization_public_key":  tftypes.String,
 				"organization_private_key": tftypes.String,
 			},
 			OptionalAttributes: map[string]struct{}{
 				"id":                       {},
-				"retention":                {},
+				"retention_days":           {},
 				"organization_public_key":  {},
 				"organization_private_key": {},
 			},

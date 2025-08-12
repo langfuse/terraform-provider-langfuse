@@ -20,7 +20,7 @@ func NewProjectResource() resource.Resource {
 type projectResourceModel struct {
 	ID                     types.String `tfsdk:"id"`
 	Name                   types.String `tfsdk:"name"`
-	Retention              types.Int32  `tfsdk:"retention"`
+	RetentionDays          types.Int32  `tfsdk:"retention_days"`
 	OrganizationPublicKey  types.String `tfsdk:"organization_public_key"`
 	OrganizationPrivateKey types.String `tfsdk:"organization_private_key"`
 }
@@ -47,7 +47,7 @@ func (r *projectResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Required:    true,
 				Description: "The display name of the project.",
 			},
-			"retention": schema.Int32Attribute{
+			"retention_days": schema.Int32Attribute{
 				Optional:    true,
 				Description: "The retention period for the project in days. If not set, or set with a value of 0, data will be stored indefinitely.",
 			},
@@ -80,9 +80,9 @@ func (r *projectResource) Create(ctx context.Context, req resource.CreateRequest
 	}
 
 	organizationClient := r.ClientFactory.NewOrganizationClient(data.OrganizationPublicKey.ValueString(), data.OrganizationPrivateKey.ValueString())
-	project, err := organizationClient.CreateProject(ctx, langfuse.Project{
-		Name:      data.Name.ValueString(),
-		Retention: data.Retention.ValueInt32(),
+	project, err := organizationClient.CreateProject(ctx, &langfuse.CreateProjectRequest{
+		Name:          data.Name.ValueString(),
+		RetentionDays: data.RetentionDays.ValueInt32(),
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating project", err.Error())
@@ -92,7 +92,7 @@ func (r *projectResource) Create(ctx context.Context, req resource.CreateRequest
 	resp.Diagnostics.Append(resp.State.Set(ctx, &projectResourceModel{
 		ID:                     types.StringValue(project.ID),
 		Name:                   types.StringValue(project.Name),
-		Retention:              types.Int32Value(project.Retention),
+		RetentionDays:          types.Int32Value(project.RetentionDays),
 		OrganizationPublicKey:  types.StringValue(data.OrganizationPublicKey.ValueString()),
 		OrganizationPrivateKey: types.StringValue(data.OrganizationPrivateKey.ValueString()),
 	})...)
@@ -116,7 +116,7 @@ func (r *projectResource) Read(ctx context.Context, req resource.ReadRequest, re
 	resp.Diagnostics.Append(resp.State.Set(ctx, &projectResourceModel{
 		ID:                     types.StringValue(project.ID),
 		Name:                   types.StringValue(project.Name),
-		Retention:              types.Int32Value(project.Retention),
+		RetentionDays:          types.Int32Value(project.RetentionDays),
 		OrganizationPublicKey:  types.StringValue(data.OrganizationPublicKey.ValueString()),
 		OrganizationPrivateKey: types.StringValue(data.OrganizationPrivateKey.ValueString()),
 	})...)
@@ -133,8 +133,8 @@ func (r *projectResource) Update(ctx context.Context, req resource.UpdateRequest
 	organizationClient := r.ClientFactory.NewOrganizationClient(data.OrganizationPublicKey.ValueString(), data.OrganizationPrivateKey.ValueString())
 
 	request := &langfuse.UpdateProjectRequest{
-		Name:      data.Name.ValueString(),
-		Retention: data.Retention.ValueInt32(),
+		Name:          data.Name.ValueString(),
+		RetentionDays: data.RetentionDays.ValueInt32(),
 	}
 
 	project, err := organizationClient.UpdateProject(ctx, data.ID.ValueString(), request)
@@ -146,7 +146,7 @@ func (r *projectResource) Update(ctx context.Context, req resource.UpdateRequest
 	resp.Diagnostics.Append(resp.State.Set(ctx, &projectResourceModel{
 		ID:                     types.StringValue(project.ID),
 		Name:                   types.StringValue(project.Name),
-		Retention:              types.Int32Value(project.Retention),
+		RetentionDays:          types.Int32Value(project.RetentionDays),
 		OrganizationPublicKey:  types.StringValue(data.OrganizationPublicKey.ValueString()),
 		OrganizationPrivateKey: types.StringValue(data.OrganizationPrivateKey.ValueString()),
 	})...)
