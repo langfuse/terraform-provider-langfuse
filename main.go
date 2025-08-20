@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/cresta/terraform-provider-langfuse/provider"
+	"github.com/cresta/terraform-provider-langfuse/internal/provider"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 )
 

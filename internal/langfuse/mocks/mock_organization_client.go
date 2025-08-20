@@ -8,7 +8,7 @@ import (
 	context "context"
 	reflect "reflect"
 
-	langfuse "github.com/cresta/terraform-provider-langfuse/langfuse"
+	langfuse "github.com/cresta/terraform-provider-langfuse/internal/langfuse"
 	gomock "github.com/golang/mock/gomock"
 )
 

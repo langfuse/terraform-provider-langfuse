@@ -3,7 +3,7 @@ package provider
 import (
 	"context"
 
-	"github.com/cresta/terraform-provider-langfuse/langfuse"
+	"github.com/cresta/terraform-provider-langfuse/internal/langfuse"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
