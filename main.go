@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/langfuse/terraform-provider-langfuse/internal/provider"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
+	"github.com/langfuse/terraform-provider-langfuse/internal/provider"
 )
 
 var (
@@ -23,7 +23,7 @@ func main() {
 	flag.Parse()
 
 	opts := providerserver.ServeOpts{
-		Address: "registry.terraform.io/cresta/langfuse",
+		Address: "registry.terraform.io/langfuse/langfuse",
 		Debug:   debug,
 	}
 

@@ -28,7 +28,7 @@ Add the provider to your Terraform configuration:
 terraform {
   required_providers {
     langfuse = {
-      source  = "cresta/langfuse"
+      source  = "langfuse/langfuse"
       version = "~> 0.1.0"
     }
   }
@@ -41,7 +41,7 @@ For development and testing:
 
 ```bash
 # Clone the repository
-git clone https://github.com/cresta/terraform-provider-langfuse
+git clone https://github.com/langfuse/terraform-provider-langfuse
 cd terraform-provider-langfuse
 
 # Build the provider
@@ -73,7 +73,7 @@ provider "langfuse" {
 terraform {
   required_providers {
     langfuse = {
-      source  = "cresta/langfuse"
+      source  = "langfuse/langfuse"
       version = "~> 0.1.0"
     }
   }
@@ -206,7 +206,7 @@ Manages API keys for projects.
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/cresta/terraform-provider-langfuse
+   git clone https://github.com/langfuse/terraform-provider-langfuse
    cd terraform-provider-langfuse
    ```
 
@@ -283,8 +283,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Support
 
 - 📚 [Langfuse Documentation](https://langfuse.com/docs)
-- 🐛 [Report Issues](https://github.com/cresta/terraform-provider-langfuse/issues)
-- 💬 [Community Discussions](https://github.com/cresta/terraform-provider-langfuse/discussions)
+- 🐛 [Report Issues](https://github.com/langfuse/terraform-provider-langfuse/issues)
+- 💬 [Community Discussions](https://github.com/langfuse/terraform-provider-langfuse/discussions)
 
 ## Changelog
 
