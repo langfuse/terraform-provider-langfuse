@@ -3,7 +3,7 @@ terraform {
 
   required_providers {
     langfuse = {
-      source  = "cresta/langfuse"
+      source  = "langfuse/langfuse"
       version = ">= 0.1.0"
     }
   }

@@ -1,8 +1,13 @@
-module github.com/cresta/terraform-provider-langfuse
+module github.com/langfuse/terraform-provider-langfuse
 
 go 1.24.2
 
-require github.com/hashicorp/terraform-plugin-testing v1.13.3
+require (
+	github.com/golang/mock v1.6.0
+	github.com/hashicorp/terraform-plugin-framework v1.15.1
+	github.com/hashicorp/terraform-plugin-go v0.28.0
+	github.com/hashicorp/terraform-plugin-testing v1.13.3
+)
 
 require (
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
@@ -10,7 +15,6 @@ require (
 	github.com/apparentlymart/go-textseg/v15 v15.0.0 // indirect
 	github.com/cloudflare/circl v1.6.1 // indirect
 	github.com/fatih/color v1.16.0 // indirect
-	github.com/golang/mock v1.6.0 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
@@ -28,9 +32,6 @@ require (
 	github.com/hashicorp/logutils v1.0.0 // indirect
 	github.com/hashicorp/terraform-exec v0.23.0 // indirect
 	github.com/hashicorp/terraform-json v0.25.0 // indirect
-	github.com/hashicorp/terraform-plugin-docs v0.22.0 // indirect
-	github.com/hashicorp/terraform-plugin-framework v1.15.1 // indirect
-	github.com/hashicorp/terraform-plugin-go v0.28.0 // indirect
 	github.com/hashicorp/terraform-plugin-log v0.9.0 // indirect
 	github.com/hashicorp/terraform-plugin-sdk/v2 v2.37.0 // indirect
 	github.com/hashicorp/terraform-registry-address v0.2.5 // indirect

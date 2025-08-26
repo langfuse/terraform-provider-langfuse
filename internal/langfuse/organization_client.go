@@ -48,7 +48,7 @@ type deleteProjectApiKeyResponse struct {
 	Success bool `json:"success"`
 }
 
-//go:generate mockgen -destination=./mocks/mock_organization_client.go -package=mocks github.com/cresta/terraform-provider-langfuse/internal/langfuse OrganizationClient
+//go:generate mockgen -destination=./mocks/mock_organization_client.go -package=mocks github.com/langfuse/terraform-provider-langfuse/internal/langfuse OrganizationClient
 
 type OrganizationClient interface {
 	ListProjects(ctx context.Context) ([]*Project, error)

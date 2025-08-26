@@ -6,8 +6,8 @@ import (
 
 	"github.com/golang/mock/gomock"
 
-	"github.com/cresta/terraform-provider-langfuse/internal/langfuse"
-	"github.com/cresta/terraform-provider-langfuse/internal/langfuse/mocks"
+	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
+	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse/mocks"
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	resschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"

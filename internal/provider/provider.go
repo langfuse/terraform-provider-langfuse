@@ -4,7 +4,7 @@ import (
 	"context"
 	"os"
 
-	"github.com/cresta/terraform-provider-langfuse/internal/langfuse"
+	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
