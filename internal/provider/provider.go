@@ -38,7 +38,7 @@ func (p *langfuseProvider) Schema(ctx context.Context, req provider.SchemaReques
 			"admin_api_key": schema.StringAttribute{
 				Optional:    true,
 				Sensitive:   true,
-				Description: "Admin API key. Only needed when managing organizations. Can also come from LANGFUSE_API_KEY.",
+				Description: "Admin API key. Only needed when managing organizations. Can also come from LANGFUSE_ADMIN_KEY.",
 			},
 		},
 	}
@@ -53,12 +53,12 @@ func (p *langfuseProvider) Configure(ctx context.Context, req provider.Configure
 	}
 
 	host := "https://app.langfuse.com"
-	if config.Host.String() != "" {
+	if !config.Host.IsNull() && !config.Host.IsUnknown() && config.Host.ValueString() != "" {
 		host = config.Host.ValueString()
 	}
 
-	apiKey := os.Getenv("LANGFUSE_API_KEY")
-	if config.AdminAPIKey.String() != "" {
+	apiKey := os.Getenv("LANGFUSE_ADMIN_KEY")
+	if !config.AdminAPIKey.IsNull() && !config.AdminAPIKey.IsUnknown() && config.AdminAPIKey.ValueString() != "" {
 		apiKey = config.AdminAPIKey.ValueString()
 	}
 

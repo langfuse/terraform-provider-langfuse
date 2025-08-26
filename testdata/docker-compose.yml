@@ -1,0 +1,129 @@
+version: "3.9"
+
+# Minimal but fully-functional Langfuse stack for local acceptance testing.
+# ‑ Postgres, ClickHouse, Redis and MinIO are started with test credentials and
+#   in-container volumes (data is thrown away when the stack is removed).
+# ‑ The langfuse-web container exposes port 3000 so provider tests can talk to it.
+#
+# Usage:
+#   docker compose -f testdata/docker-compose.yml up -d
+#   ./scripts/wait-for-langfuse.sh
+#   export TF_ACC=1 LANGFUSE_HOST=http://localhost:3000 LANGFUSE_ADMIN_KEY=<ADMIN_KEY>
+#   go test ./... -v -run TestAcc
+#
+# When done:
+#   docker compose -f testdata/docker-compose.yml down -v
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: langfuse
+      POSTGRES_USER: langfuse
+      POSTGRES_PASSWORD: langfuse
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "langfuse"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.3-alpine
+    environment:
+      CLICKHOUSE_DB: langfuse
+      CLICKHOUSE_USER: langfuse
+      CLICKHOUSE_PASSWORD: langfuse
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--query", "SELECT 1"]
+      # ClickHouse can take a while on first boot. Allow up to 10 minutes.
+      interval: 5s
+      timeout: 5s
+      retries: 120
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--save", "" , "--appendonly", "no"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "PING"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: quay.io/minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minio
+      MINIO_ROOT_PASSWORD: minio123
+      MINIO_BROWSER_REDIRECT_URL: http://localhost:9001
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - minio_data:/data
+
+  langfuse-web:
+    image: langfuse/langfuse:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      ADMIN_API_KEY: test_admin_key
+      # Enterprise license key for admin API access (from environment)
+      LANGFUSE_EE_LICENSE_KEY: ${LANGFUSE_EE_LICENSE_KEY:-}
+      LANGFUSE_INIT_ORG_ID: test-org
+      LANGFUSE_INIT_ORG_NAME: Test Organization
+      LANGFUSE_INIT_USER_EMAIL: user@langfuse.com
+      LANGFUSE_INIT_USER_NAME: Langfuse User
+      LANGFUSE_INIT_USER_PASSWORD: defaultpassword
+      # Database
+      DATABASE_URL: postgres://langfuse:langfuse@postgres:5432/langfuse?sslmode=disable
+      # ClickHouse connection
+      CLICKHOUSE_URL: http://langfuse:langfuse@clickhouse:8123/langfuse
+      CLICKHOUSE_USER: langfuse
+      CLICKHOUSE_PASSWORD: langfuse
+      CLICKHOUSE_MIGRATION_URL: clickhouse://langfuse:langfuse@clickhouse:9000
+      # Single-node ClickHouse; disable ON CLUSTER migrations
+      CLICKHOUSE_CLUSTER_ENABLED: "false"
+      # Redis
+      REDIS_CONNECTION_STRING: redis://redis:6379
+      # NextAuth base URL (required)
+      NEXTAUTH_URL: http://localhost:3000
+      # Object Storage (S3-compatible) – latest envs
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: langfuse
+      LANGFUSE_S3_EVENT_UPLOAD_PREFIX: events/
+      AWS_ACCESS_KEY_ID: minio
+      AWS_SECRET_ACCESS_KEY: minio123
+      AWS_ENDPOINT: http://minio:9000
+      AWS_REGION: us-east-1
+      AWS_FORCE_PATH_STYLE: "true"
+      # Langfuse secrets – safe for local tests only
+      NEXTAUTH_SECRET: devnextauthsecret
+      SALT: devsalt
+      # Encryption key required by Langfuse (64 hex chars)
+      ENCRYPTION_KEY: 15941deddb9502d002e114762aa6ad69ce839efb7dc47cd684feb884cad33ad8
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health" ]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+volumes:
+  postgres_data:
+  clickhouse_data:
+  minio_data:

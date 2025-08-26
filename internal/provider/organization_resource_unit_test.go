@@ -48,7 +48,6 @@ func TestOrganizationResourceSchema(t *testing.T) {
 		t.Fatalf("schema implementation validation failed: %v", diags)
 	}
 
-	// Spot-check attribute flags
 	idAttrRaw, ok := schemaResp.Schema.Attributes["id"]
 	if !ok {
 		t.Fatalf("schema is missing mandatory 'id' attribute")

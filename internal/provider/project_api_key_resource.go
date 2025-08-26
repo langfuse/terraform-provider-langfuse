@@ -31,6 +31,10 @@ type projectApiKeyResource struct {
 }
 
 func (r *projectApiKeyResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
 	r.ClientFactory = req.ProviderData.(langfuse.ClientFactory)
 }
 

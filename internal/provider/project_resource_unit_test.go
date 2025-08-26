@@ -108,19 +108,22 @@ func TestProjectResourceCRUD(t *testing.T) {
 	})
 
 	createName := "ChatQA"
-	publicKey := "pk_test_123"
-	privateKey := "sk_test_456"
+	projectID := "proj-123"
+	organizationID := "org-123"
+	publicKey := "pk-1234"
+	privateKey := "sk-1234"
 
 	var createResp resource.CreateResponse
 	t.Run("Create", func(t *testing.T) {
-		createReq := &langfuse.CreateProjectRequest{Name: createName, RetentionDays: 0}
-		clientFactory.OrganizationClient.EXPECT().CreateProject(ctx, createReq).Return(&langfuse.Project{ID: "proj-123", Name: createName, RetentionDays: 0}, nil)
+		expectedProject := &langfuse.CreateProjectRequest{Name: createName, RetentionDays: 0}
+		clientFactory.OrganizationClient.EXPECT().CreateProject(ctx, expectedProject).Return(&langfuse.Project{ID: projectID, Name: createName, RetentionDays: 0}, nil)
 
 		createConfig := tfsdk.Config{
 			Raw: buildProjectObjectValue(map[string]tftypes.Value{
 				"id":                       tftypes.NewValue(tftypes.String, nil),
 				"name":                     tftypes.NewValue(tftypes.String, createName),
 				"retention_days":           tftypes.NewValue(tftypes.Number, big.NewFloat(0)),
+				"organization_id":          tftypes.NewValue(tftypes.String, organizationID),
 				"organization_public_key":  tftypes.NewValue(tftypes.String, publicKey),
 				"organization_private_key": tftypes.NewValue(tftypes.String, privateKey),
 			}),
@@ -155,6 +158,7 @@ func TestProjectResourceCRUD(t *testing.T) {
 				"id":                       tftypes.NewValue(tftypes.String, "proj-123"),
 				"name":                     tftypes.NewValue(tftypes.String, newName),
 				"retention_days":           tftypes.NewValue(tftypes.Number, big.NewFloat(float64(newRetention))),
+				"organization_id":          tftypes.NewValue(tftypes.String, organizationID),
 				"organization_public_key":  tftypes.NewValue(tftypes.String, publicKey),
 				"organization_private_key": tftypes.NewValue(tftypes.String, privateKey),
 			}),
@@ -177,6 +181,50 @@ func TestProjectResourceCRUD(t *testing.T) {
 			t.Fatalf("unexpected diagnostics from Delete: %v", deleteResp.Diagnostics)
 		}
 	})
+
+	// Test that retention_days is preserved from state during Read (since API doesn't return it)
+	t.Run("Read preserves retention_days from state", func(t *testing.T) {
+		ctx := context.Background()
+		r := &projectResource{}
+
+		clientFactory := mocks.NewMockClientFactory(ctrl)
+
+		clientFactory.OrganizationClient.EXPECT().GetProject(ctx, "proj-123").Return(&langfuse.Project{
+			ID:            "proj-123",
+			Name:          "test-project",
+			RetentionDays: 0, // API returns 0 (doesn't return actual value)
+		}, nil)
+
+		r.ClientFactory = clientFactory
+
+		// State has retention_days = 30
+		state := buildProjectObjectValue(map[string]tftypes.Value{
+			"id":                       tftypes.NewValue(tftypes.String, "proj-123"),
+			"name":                     tftypes.NewValue(tftypes.String, "test-project"),
+			"retention_days":           tftypes.NewValue(tftypes.Number, big.NewFloat(30)),
+			"organization_id":          tftypes.NewValue(tftypes.String, organizationID),
+			"organization_public_key":  tftypes.NewValue(tftypes.String, "pub-key"),
+			"organization_private_key": tftypes.NewValue(tftypes.String, "priv-key"),
+		})
+
+		var readResp resource.ReadResponse
+		readResp.State.Raw = state
+		readResp.State.Schema = resourceSchema
+
+		r.Read(ctx, resource.ReadRequest{State: readResp.State}, &readResp)
+
+		if readResp.Diagnostics.HasError() {
+			t.Fatalf("unexpected diagnostics from Read: %v", readResp.Diagnostics)
+		}
+
+		// Verify retention_days is preserved as 30, not overwritten with 0 from API
+		var stateData projectResourceModel
+		readResp.State.Get(ctx, &stateData)
+
+		if stateData.RetentionDays.ValueInt32() != 30 {
+			t.Errorf("expected retention_days to be preserved as 30, got %d", stateData.RetentionDays.ValueInt32())
+		}
+	})
 }
 
 func buildProjectObjectValue(values map[string]tftypes.Value) tftypes.Value {
@@ -186,12 +234,14 @@ func buildProjectObjectValue(values map[string]tftypes.Value) tftypes.Value {
 				"id":                       tftypes.String,
 				"name":                     tftypes.String,
 				"retention_days":           tftypes.Number,
+				"organization_id":          tftypes.String,
 				"organization_public_key":  tftypes.String,
 				"organization_private_key": tftypes.String,
 			},
 			OptionalAttributes: map[string]struct{}{
 				"id":                       {},
 				"retention_days":           {},
+				"organization_id":          {},
 				"organization_public_key":  {},
 				"organization_private_key": {},
 			},

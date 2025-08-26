@@ -21,6 +21,7 @@ type projectResourceModel struct {
 	ID                     types.String `tfsdk:"id"`
 	Name                   types.String `tfsdk:"name"`
 	RetentionDays          types.Int32  `tfsdk:"retention_days"`
+	OrganizationID         types.String `tfsdk:"organization_id"`
 	OrganizationPublicKey  types.String `tfsdk:"organization_public_key"`
 	OrganizationPrivateKey types.String `tfsdk:"organization_private_key"`
 }
@@ -30,6 +31,10 @@ type projectResource struct {
 }
 
 func (r *projectResource) Configure(ctx context.Context, req resource.ConfigureRequest, resp *resource.ConfigureResponse) {
+	if req.ProviderData == nil {
+		return
+	}
+
 	r.ClientFactory = req.ProviderData.(langfuse.ClientFactory)
 }
 
@@ -51,8 +56,15 @@ func (r *projectResource) Schema(ctx context.Context, req resource.SchemaRequest
 				Optional:    true,
 				Description: "The retention period for the project in days. If not set, or set with a value of 0, data will be stored indefinitely.",
 			},
+			"organization_id": schema.StringAttribute{
+				Required:    true,
+				Description: "The ID of the organization that owns this project.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
 			"organization_public_key": schema.StringAttribute{
-				Optional:    false,
+				Required:    true,
 				Sensitive:   true,
 				Description: "Organization public key to authenticate the call.",
 				PlanModifiers: []planmodifier.String{
@@ -60,7 +72,7 @@ func (r *projectResource) Schema(ctx context.Context, req resource.SchemaRequest
 				},
 			},
 			"organization_private_key": schema.StringAttribute{
-				Optional:    false,
+				Required:    true,
 				Sensitive:   true,
 				Description: "Organization private key to authenticate the call.",
 				PlanModifiers: []planmodifier.String{
@@ -93,6 +105,7 @@ func (r *projectResource) Create(ctx context.Context, req resource.CreateRequest
 		ID:                     types.StringValue(project.ID),
 		Name:                   types.StringValue(project.Name),
 		RetentionDays:          types.Int32Value(project.RetentionDays),
+		OrganizationID:         types.StringValue(data.OrganizationID.ValueString()),
 		OrganizationPublicKey:  types.StringValue(data.OrganizationPublicKey.ValueString()),
 		OrganizationPrivateKey: types.StringValue(data.OrganizationPrivateKey.ValueString()),
 	})...)
@@ -113,10 +126,12 @@ func (r *projectResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
+	// Note: retention_days is write-only in the Langfuse API and not returned in responses.
 	resp.Diagnostics.Append(resp.State.Set(ctx, &projectResourceModel{
 		ID:                     types.StringValue(project.ID),
 		Name:                   types.StringValue(project.Name),
-		RetentionDays:          types.Int32Value(project.RetentionDays),
+		RetentionDays:          data.RetentionDays,
+		OrganizationID:         types.StringValue(data.OrganizationID.ValueString()),
 		OrganizationPublicKey:  types.StringValue(data.OrganizationPublicKey.ValueString()),
 		OrganizationPrivateKey: types.StringValue(data.OrganizationPrivateKey.ValueString()),
 	})...)
@@ -130,6 +145,15 @@ func (r *projectResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
+	// Get ID from current state (ID is not in config during updates)
+	var currentState projectResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &currentState)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	projectID := currentState.ID.ValueString()
+
 	organizationClient := r.ClientFactory.NewOrganizationClient(data.OrganizationPublicKey.ValueString(), data.OrganizationPrivateKey.ValueString())
 
 	request := &langfuse.UpdateProjectRequest{
@@ -137,7 +161,7 @@ func (r *projectResource) Update(ctx context.Context, req resource.UpdateRequest
 		RetentionDays: data.RetentionDays.ValueInt32(),
 	}
 
-	project, err := organizationClient.UpdateProject(ctx, data.ID.ValueString(), request)
+	project, err := organizationClient.UpdateProject(ctx, projectID, request)
 	if err != nil {
 		resp.Diagnostics.AddError("Error updating project", err.Error())
 		return
@@ -146,7 +170,8 @@ func (r *projectResource) Update(ctx context.Context, req resource.UpdateRequest
 	resp.Diagnostics.Append(resp.State.Set(ctx, &projectResourceModel{
 		ID:                     types.StringValue(project.ID),
 		Name:                   types.StringValue(project.Name),
-		RetentionDays:          types.Int32Value(project.RetentionDays),
+		RetentionDays:          data.RetentionDays, // Use from config, not API response
+		OrganizationID:         types.StringValue(data.OrganizationID.ValueString()),
 		OrganizationPublicKey:  types.StringValue(data.OrganizationPublicKey.ValueString()),
 		OrganizationPrivateKey: types.StringValue(data.OrganizationPrivateKey.ValueString()),
 	})...)

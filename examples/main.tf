@@ -3,7 +3,7 @@ terraform {
 
   required_providers {
     langfuse = {
-      source  = "langfuse/langfuse"
+      source  = "cresta/langfuse"
       version = ">= 0.1.0"
     }
   }
@@ -15,17 +15,17 @@ variable "host" {
   description = "Base URL of the Langfuse control plane."
 }
 
-# Admin-level API key.  If you prefer, just export LANGFUSE_API_KEY instead of passing this variable.
+# Admin-level API key.  If you prefer, just export LANGFUSE_ADMIN_KEY instead of passing this variable.
 variable "admin_api_key" {
   type        = string
   sensitive   = true
-  description = "Admin API key for the Langfuse host. Optional when LANGFUSE_API_KEY is set."
+  description = "Admin API key for the Langfuse host. Optional when LANGFUSE_ADMIN_KEY is set."
   default     = null
 }
 
 provider "langfuse" {
-  host    = var.host
-  api_key = var.admin_api_key
+  host          = var.host
+  admin_api_key = var.admin_api_key
 }
 
 resource "langfuse_organization" "org" {
@@ -37,15 +37,14 @@ resource "langfuse_organization_api_key" "org_key" {
 }
 
 resource "langfuse_project" "project" {
-  name = "example-project"
-
+  name            = "example-project"
+  organization_id = langfuse_organization.org.id
   organization_public_key  = langfuse_organization_api_key.org_key.public_key
   organization_private_key = langfuse_organization_api_key.org_key.secret_key
 }
 
 resource "langfuse_project_api_key" "project_key" {
   project_id = langfuse_project.project.id
-
   organization_public_key  = langfuse_organization_api_key.org_key.public_key
   organization_private_key = langfuse_organization_api_key.org_key.secret_key
 }

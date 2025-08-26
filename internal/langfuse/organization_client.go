@@ -21,18 +21,18 @@ type ProjectApiKey struct {
 
 type CreateProjectRequest struct {
 	Name          string            `json:"name"`
-	RetentionDays int32            `json:"retention"`
+	RetentionDays int32             `json:"retention"`
 	Metadata      map[string]string `json:"metadata,omitempty"`
 }
 
 type UpdateProjectRequest struct {
 	Name          string            `json:"name"`
-	RetentionDays int32            `json:"retention"`
+	RetentionDays int32             `json:"retention"`
 	Metadata      map[string]string `json:"metadata,omitempty"`
 }
 
 type listProjectsResponse struct {
-	Projects []Project `json:"projects"`
+	Projects []*Project `json:"projects"`
 }
 
 type listProjectApiKeysResponse struct {
@@ -48,9 +48,10 @@ type deleteProjectApiKeyResponse struct {
 	Success bool `json:"success"`
 }
 
-//go:generate mockgen -destination=./mocks/mock_organization_client.go -package=mocks github.com/cresta/terraform-provider-langfuse/langfuse OrganizationClient
+//go:generate mockgen -destination=./mocks/mock_organization_client.go -package=mocks github.com/cresta/terraform-provider-langfuse/internal/langfuse OrganizationClient
 
 type OrganizationClient interface {
+	ListProjects(ctx context.Context) ([]*Project, error)
 	GetProject(ctx context.Context, projectID string) (*Project, error)
 	CreateProject(ctx context.Context, request *CreateProjectRequest) (*Project, error)
 	UpdateProject(ctx context.Context, projectID string, request *UpdateProjectRequest) (*Project, error)
@@ -76,6 +77,20 @@ func NewOrganizationClient(host, publicKey, privateKey string) OrganizationClien
 	}
 }
 
+func (c *organizationClientImpl) ListProjects(ctx context.Context) ([]*Project, error) {
+	resp, err := c.makeRequest(ctx, http.MethodGet, "api/public/organizations/projects", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var listProjResp listProjectsResponse
+	if err := decodeResponse(resp, &listProjResp); err != nil {
+		return nil, err
+	}
+
+	return listProjResp.Projects, nil
+}
+
 func (c *organizationClientImpl) GetProject(ctx context.Context, projectID string) (*Project, error) {
 	// Note: this endpoint does not return `retentionDays`, so the returned value will always be 0
 	resp, err := c.makeRequest(ctx, http.MethodGet, "api/public/organizations/projects", nil)
@@ -89,7 +104,7 @@ func (c *organizationClientImpl) GetProject(ctx context.Context, projectID strin
 	}
 	for _, proj := range listProjResp.Projects {
 		if proj.ID == projectID {
-			return &proj, nil
+			return proj, nil
 		}
 	}
 	return nil, fmt.Errorf("cannot find project with ID %s", projectID)

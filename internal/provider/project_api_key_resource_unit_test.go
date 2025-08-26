@@ -98,12 +98,13 @@ func TestProjectApiKeyResourceCRUD(t *testing.T) {
 	})
 
 	projectID := "proj-123"
-	publicKey := "pk_test_123"
-	privateKey := "sk_test_456"
+	projectApiKeyID := "pak-123"
+	publicKey := "pk-1234"
+	privateKey := "sk-1234"
 
 	var createResp resource.CreateResponse
 	t.Run("Create", func(t *testing.T) {
-		clientFactory.OrganizationClient.EXPECT().CreateProjectApiKey(ctx, projectID).Return(&langfuse.ProjectApiKey{ID: "pak-123", PublicKey: "pub", SecretKey: "sec"}, nil)
+		clientFactory.OrganizationClient.EXPECT().CreateProjectApiKey(ctx, projectID).Return(&langfuse.ProjectApiKey{ID: projectApiKeyID, PublicKey: publicKey, SecretKey: privateKey}, nil)
 
 		createConfig := tfsdk.Config{Raw: buildApiKeyObjectValue(map[string]tftypes.Value{
 			"id":                       tftypes.NewValue(tftypes.String, nil),
@@ -123,7 +124,7 @@ func TestProjectApiKeyResourceCRUD(t *testing.T) {
 
 	var readResp resource.ReadResponse
 	t.Run("Read", func(t *testing.T) {
-		clientFactory.OrganizationClient.EXPECT().GetProjectApiKey(ctx, projectID, "pak-123").Return(&langfuse.ProjectApiKey{ID: "pak-123", PublicKey: "pub", SecretKey: "sec"}, nil)
+		clientFactory.OrganizationClient.EXPECT().GetProjectApiKey(ctx, projectID, projectApiKeyID).Return(&langfuse.ProjectApiKey{ID: projectApiKeyID, PublicKey: publicKey, SecretKey: privateKey}, nil)
 
 		readResp.State.Schema = resourceSchema
 		r.Read(ctx, resource.ReadRequest{State: createResp.State}, &readResp)
@@ -133,7 +134,7 @@ func TestProjectApiKeyResourceCRUD(t *testing.T) {
 	})
 
 	t.Run("Delete", func(t *testing.T) {
-		clientFactory.OrganizationClient.EXPECT().DeleteProjectApiKey(ctx, projectID, "pak-123").Return(nil)
+		clientFactory.OrganizationClient.EXPECT().DeleteProjectApiKey(ctx, projectID, projectApiKeyID).Return(nil)
 
 		var deleteResp resource.DeleteResponse
 		deleteResp.State.Schema = resourceSchema

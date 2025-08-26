@@ -13,9 +13,13 @@ type Organization struct {
 }
 
 type OrganizationApiKey struct {
-	ID             string `json:"id"`
-	PublicKey      string `json:"publicKey"`
-	SecretKey      string `json:"secretKey"`
+	ID        string `json:"id"`
+	PublicKey string `json:"publicKey"`
+	SecretKey string `json:"secretKey"`
+}
+
+type ListOrganizationsResponse struct {
+	Organizations []*Organization `json:"organizations"`
 }
 
 type CreateOrganizationRequest struct {
@@ -40,9 +44,10 @@ type deleteOrganizationApiKeyResponse struct {
 	Success bool `json:"success"`
 }
 
-//go:generate mockgen -destination=./mocks/mock_admin_client.go -package=mocks github.com/cresta/terraform-provider-langfuse/langfuse AdminClient
+//go:generate mockgen -destination=./mocks/mock_admin_client.go -package=mocks github.com/cresta/terraform-provider-langfuse/internal/langfuse AdminClient
 
 type AdminClient interface {
+	ListOrganizations(ctx context.Context) ([]*Organization, error)
 	GetOrganization(ctx context.Context, orgID string) (*Organization, error)
 	CreateOrganization(ctx context.Context, request *CreateOrganizationRequest) (*Organization, error)
 	UpdateOrganization(ctx context.Context, orgID string, request *UpdateOrganizationRequest) (*Organization, error)
@@ -64,6 +69,20 @@ func NewAdminClient(host, apiKey string) AdminClient {
 		apiKey:     apiKey,
 		httpClient: &http.Client{},
 	}
+}
+
+func (c *adminClientImpl) ListOrganizations(ctx context.Context) ([]*Organization, error) {
+	resp, err := c.makeRequest(ctx, http.MethodGet, "api/admin/organizations", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var listOrgResp ListOrganizationsResponse
+	if err := decodeResponse(resp, &listOrgResp); err != nil {
+		return nil, err
+	}
+
+	return listOrgResp.Organizations, nil
 }
 
 func (c *adminClientImpl) GetOrganization(ctx context.Context, orgID string) (*Organization, error) {
