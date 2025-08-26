@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/cresta/terraform-provider-langfuse/internal/langfuse"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -21,6 +22,7 @@ type projectResourceModel struct {
 	ID                     types.String `tfsdk:"id"`
 	Name                   types.String `tfsdk:"name"`
 	RetentionDays          types.Int32  `tfsdk:"retention_days"`
+	Metadata               types.Map    `tfsdk:"metadata"`
 	OrganizationID         types.String `tfsdk:"organization_id"`
 	OrganizationPublicKey  types.String `tfsdk:"organization_public_key"`
 	OrganizationPrivateKey types.String `tfsdk:"organization_private_key"`
@@ -55,6 +57,11 @@ func (r *projectResource) Schema(ctx context.Context, req resource.SchemaRequest
 			"retention_days": schema.Int32Attribute{
 				Optional:    true,
 				Description: "The retention period for the project in days. If not set, or set with a value of 0, data will be stored indefinitely.",
+			},
+			"metadata": schema.MapAttribute{
+				Optional:    true,
+				ElementType: types.StringType,
+				Description: "Metadata for the project as key-value pairs.",
 			},
 			"organization_id": schema.StringAttribute{
 				Required:    true,
@@ -91,20 +98,42 @@ func (r *projectResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
+	metadata := make(map[string]string)
+	if !data.Metadata.IsNull() && !data.Metadata.IsUnknown() {
+		resp.Diagnostics.Append(data.Metadata.ElementsAs(ctx, &metadata, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
 	organizationClient := r.ClientFactory.NewOrganizationClient(data.OrganizationPublicKey.ValueString(), data.OrganizationPrivateKey.ValueString())
 	project, err := organizationClient.CreateProject(ctx, &langfuse.CreateProjectRequest{
 		Name:          data.Name.ValueString(),
 		RetentionDays: data.RetentionDays.ValueInt32(),
+		Metadata:      metadata,
 	})
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating project", err.Error())
 		return
 	}
 
+	var metadataMap types.Map
+	if len(project.Metadata) > 0 {
+		var diags diag.Diagnostics
+		metadataMap, diags = types.MapValueFrom(ctx, types.StringType, project.Metadata)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	} else {
+		metadataMap = types.MapNull(types.StringType)
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &projectResourceModel{
 		ID:                     types.StringValue(project.ID),
 		Name:                   types.StringValue(project.Name),
 		RetentionDays:          types.Int32Value(project.RetentionDays),
+		Metadata:               metadataMap,
 		OrganizationID:         types.StringValue(data.OrganizationID.ValueString()),
 		OrganizationPublicKey:  types.StringValue(data.OrganizationPublicKey.ValueString()),
 		OrganizationPrivateKey: types.StringValue(data.OrganizationPrivateKey.ValueString()),
@@ -126,11 +155,24 @@ func (r *projectResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
+	var metadataMap types.Map
+	if len(project.Metadata) > 0 {
+		var diags diag.Diagnostics
+		metadataMap, diags = types.MapValueFrom(ctx, types.StringType, project.Metadata)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	} else {
+		metadataMap = types.MapNull(types.StringType)
+	}
+
 	// Note: retention_days is write-only in the Langfuse API and not returned in responses.
 	resp.Diagnostics.Append(resp.State.Set(ctx, &projectResourceModel{
 		ID:                     types.StringValue(project.ID),
 		Name:                   types.StringValue(project.Name),
 		RetentionDays:          data.RetentionDays,
+		Metadata:               metadataMap,
 		OrganizationID:         types.StringValue(data.OrganizationID.ValueString()),
 		OrganizationPublicKey:  types.StringValue(data.OrganizationPublicKey.ValueString()),
 		OrganizationPrivateKey: types.StringValue(data.OrganizationPrivateKey.ValueString()),
@@ -154,11 +196,20 @@ func (r *projectResource) Update(ctx context.Context, req resource.UpdateRequest
 
 	projectID := currentState.ID.ValueString()
 
+	metadata := make(map[string]string)
+	if !data.Metadata.IsNull() && !data.Metadata.IsUnknown() {
+		resp.Diagnostics.Append(data.Metadata.ElementsAs(ctx, &metadata, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
 	organizationClient := r.ClientFactory.NewOrganizationClient(data.OrganizationPublicKey.ValueString(), data.OrganizationPrivateKey.ValueString())
 
 	request := &langfuse.UpdateProjectRequest{
 		Name:          data.Name.ValueString(),
 		RetentionDays: data.RetentionDays.ValueInt32(),
+		Metadata:      metadata,
 	}
 
 	project, err := organizationClient.UpdateProject(ctx, projectID, request)
@@ -167,10 +218,23 @@ func (r *projectResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
+	var metadataMap types.Map
+	if len(project.Metadata) > 0 {
+		var diags diag.Diagnostics
+		metadataMap, diags = types.MapValueFrom(ctx, types.StringType, project.Metadata)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	} else {
+		metadataMap = types.MapNull(types.StringType)
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &projectResourceModel{
 		ID:                     types.StringValue(project.ID),
 		Name:                   types.StringValue(project.Name),
 		RetentionDays:          data.RetentionDays, // Use from config, not API response
+		Metadata:               metadataMap,
 		OrganizationID:         types.StringValue(data.OrganizationID.ValueString()),
 		OrganizationPublicKey:  types.StringValue(data.OrganizationPublicKey.ValueString()),
 		OrganizationPrivateKey: types.StringValue(data.OrganizationPrivateKey.ValueString()),
@@ -192,5 +256,13 @@ func (r *projectResource) Delete(ctx context.Context, req resource.DeleteRequest
 		return
 	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, &projectResourceModel{})...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &projectResourceModel{
+		ID:                     types.StringValue(""),
+		Name:                   types.StringValue(""),
+		RetentionDays:          types.Int32Value(0),
+		Metadata:               types.MapNull(types.StringType),
+		OrganizationID:         types.StringValue(""),
+		OrganizationPublicKey:  types.StringValue(""),
+		OrganizationPrivateKey: types.StringValue(""),
+	})...)
 }

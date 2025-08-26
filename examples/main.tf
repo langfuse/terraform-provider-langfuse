@@ -30,6 +30,13 @@ provider "langfuse" {
 
 resource "langfuse_organization" "org" {
   name = "ExampleCorp"
+  
+  metadata = {
+    environment = "production"
+    team        = "platform"
+    cost_center = "engineering"
+    region      = "us-east-1"
+  }
 }
 
 resource "langfuse_organization_api_key" "org_key" {
@@ -37,10 +44,19 @@ resource "langfuse_organization_api_key" "org_key" {
 }
 
 resource "langfuse_project" "project" {
-  name            = "example-project"
-  organization_id = langfuse_organization.org.id
+  name                     = "example-project"
+  organization_id          = langfuse_organization.org.id
   organization_public_key  = langfuse_organization_api_key.org_key.public_key
   organization_private_key = langfuse_organization_api_key.org_key.secret_key
+  retention_days           = 90
+  
+  metadata = {
+    environment     = "production"
+    application     = "chatbot"
+    owner_team      = "ai-engineering"
+    data_retention  = "quarterly"
+    compliance_tier = "high"
+  }
 }
 
 resource "langfuse_project_api_key" "project_key" {

@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Resource: `langfuse_organization`**
   - Create, read, update, and delete Langfuse organizations
   - Required `name` attribute for organization display name
+  - Optional `metadata` attribute for key-value pairs (map of strings)
   - Computed `id` attribute containing organization identifier
   - Graceful handling of deletion when organization has existing projects
 - **Resource: `langfuse_organization_api_key`**
@@ -29,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Create, read, update, and delete projects within organizations
   - Required attributes: `name`, `organization_id`, `organization_public_key`, `organization_private_key`
   - Optional `retention_days` attribute for data retention configuration
+  - Optional `metadata` attribute for key-value pairs (map of strings)
   - Computed `id` attribute containing project identifier
   - Uses organization client authentication for project operations
 - **Resource: `langfuse_project_api_key`**

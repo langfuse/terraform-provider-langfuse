@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/cresta/terraform-provider-langfuse/internal/langfuse"
+	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
@@ -17,8 +18,9 @@ func NewOrganizationResource() resource.Resource {
 }
 
 type organizationResourceModel struct {
-	ID   types.String `tfsdk:"id"`
-	Name types.String `tfsdk:"name"`
+	ID       types.String `tfsdk:"id"`
+	Name     types.String `tfsdk:"name"`
+	Metadata types.Map    `tfsdk:"metadata"`
 }
 
 type organizationResource struct {
@@ -47,6 +49,11 @@ func (r *organizationResource) Schema(ctx context.Context, req resource.SchemaRe
 				Required:    true,
 				Description: "The display name of the organization.",
 			},
+			"metadata": schema.MapAttribute{
+				Optional:    true,
+				ElementType: types.StringType,
+				Description: "Metadata for the organization as key-value pairs.",
+			},
 		},
 	}
 }
@@ -59,15 +66,39 @@ func (r *organizationResource) Create(ctx context.Context, req resource.CreateRe
 		return
 	}
 
-	org, err := r.AdminClient.CreateOrganization(ctx, &langfuse.CreateOrganizationRequest{Name: data.Name.ValueString()})
+	metadata := make(map[string]string)
+	if !data.Metadata.IsNull() && !data.Metadata.IsUnknown() {
+		resp.Diagnostics.Append(data.Metadata.ElementsAs(ctx, &metadata, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
+	org, err := r.AdminClient.CreateOrganization(ctx, &langfuse.CreateOrganizationRequest{
+		Name:     data.Name.ValueString(),
+		Metadata: metadata,
+	})
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating organization", err.Error())
 		return
 	}
 
+	var metadataMap types.Map
+	if len(org.Metadata) > 0 {
+		var diags diag.Diagnostics
+		metadataMap, diags = types.MapValueFrom(ctx, types.StringType, org.Metadata)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	} else {
+		metadataMap = types.MapNull(types.StringType)
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &organizationResourceModel{
-		ID:   types.StringValue(org.ID),
-		Name: types.StringValue(org.Name),
+		ID:       types.StringValue(org.ID),
+		Name:     types.StringValue(org.Name),
+		Metadata: metadataMap,
 	})...)
 }
 
@@ -85,9 +116,22 @@ func (r *organizationResource) Read(ctx context.Context, req resource.ReadReques
 		return
 	}
 
+	var metadataMap types.Map
+	if len(org.Metadata) > 0 {
+		var diags diag.Diagnostics
+		metadataMap, diags = types.MapValueFrom(ctx, types.StringType, org.Metadata)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	} else {
+		metadataMap = types.MapNull(types.StringType)
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &organizationResourceModel{
-		ID:   types.StringValue(org.ID),
-		Name: types.StringValue(org.Name),
+		ID:       types.StringValue(org.ID),
+		Name:     types.StringValue(org.Name),
+		Metadata: metadataMap,
 	})...)
 }
 
@@ -99,19 +143,50 @@ func (r *organizationResource) Update(ctx context.Context, req resource.UpdateRe
 		return
 	}
 
-	request := &langfuse.UpdateOrganizationRequest{
-		Name: data.Name.ValueString(),
+	// Get ID from current state (ID is not in config during updates)
+	var currentState organizationResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &currentState)...)
+	if resp.Diagnostics.HasError() {
+		return
 	}
 
-	org, err := r.AdminClient.UpdateOrganization(ctx, data.ID.ValueString(), request)
+	orgID := currentState.ID.ValueString()
+
+	metadata := make(map[string]string)
+	if !data.Metadata.IsNull() && !data.Metadata.IsUnknown() {
+		resp.Diagnostics.Append(data.Metadata.ElementsAs(ctx, &metadata, false)...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	}
+
+	request := &langfuse.UpdateOrganizationRequest{
+		Name:     data.Name.ValueString(),
+		Metadata: metadata,
+	}
+
+	org, err := r.AdminClient.UpdateOrganization(ctx, orgID, request)
 	if err != nil {
 		resp.Diagnostics.AddError("Error updating organization", err.Error())
 		return
 	}
 
+	var metadataMap types.Map
+	if len(org.Metadata) > 0 {
+		var diags diag.Diagnostics
+		metadataMap, diags = types.MapValueFrom(ctx, types.StringType, org.Metadata)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	} else {
+		metadataMap = types.MapNull(types.StringType)
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &organizationResourceModel{
-		ID:   types.StringValue(org.ID),
-		Name: types.StringValue(org.Name),
+		ID:       types.StringValue(org.ID),
+		Name:     types.StringValue(org.Name),
+		Metadata: metadataMap,
 	})...)
 }
 
@@ -139,5 +214,9 @@ func (r *organizationResource) Delete(ctx context.Context, req resource.DeleteRe
 		}
 	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, &organizationResourceModel{})...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &organizationResourceModel{
+		ID:       types.StringValue(""),
+		Name:     types.StringValue(""),
+		Metadata: types.MapNull(types.StringType),
+	})...)
 }

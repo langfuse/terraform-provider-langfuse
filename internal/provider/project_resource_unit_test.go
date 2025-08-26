@@ -108,6 +108,7 @@ func TestProjectResourceCRUD(t *testing.T) {
 	})
 
 	createName := "ChatQA"
+	createMetadata := map[string]string{"environment": "test", "team": "ai"}
 	projectID := "proj-123"
 	organizationID := "org-123"
 	publicKey := "pk-1234"
@@ -115,14 +116,29 @@ func TestProjectResourceCRUD(t *testing.T) {
 
 	var createResp resource.CreateResponse
 	t.Run("Create", func(t *testing.T) {
-		expectedProject := &langfuse.CreateProjectRequest{Name: createName, RetentionDays: 0}
-		clientFactory.OrganizationClient.EXPECT().CreateProject(ctx, expectedProject).Return(&langfuse.Project{ID: projectID, Name: createName, RetentionDays: 0}, nil)
+		expectedProject := &langfuse.CreateProjectRequest{
+			Name:          createName,
+			RetentionDays: 0,
+			Metadata:      createMetadata,
+		}
+		clientFactory.OrganizationClient.EXPECT().CreateProject(ctx, expectedProject).Return(&langfuse.Project{
+			ID:            projectID,
+			Name:          createName,
+			RetentionDays: 0,
+			Metadata:      createMetadata,
+		}, nil)
+
+		metadataValue := tftypes.NewValue(tftypes.Map{ElementType: tftypes.String}, map[string]tftypes.Value{
+			"environment": tftypes.NewValue(tftypes.String, "test"),
+			"team":        tftypes.NewValue(tftypes.String, "ai"),
+		})
 
 		createConfig := tfsdk.Config{
 			Raw: buildProjectObjectValue(map[string]tftypes.Value{
 				"id":                       tftypes.NewValue(tftypes.String, nil),
 				"name":                     tftypes.NewValue(tftypes.String, createName),
 				"retention_days":           tftypes.NewValue(tftypes.Number, big.NewFloat(0)),
+				"metadata":                 metadataValue,
 				"organization_id":          tftypes.NewValue(tftypes.String, organizationID),
 				"organization_public_key":  tftypes.NewValue(tftypes.String, publicKey),
 				"organization_private_key": tftypes.NewValue(tftypes.String, privateKey),
@@ -138,7 +154,12 @@ func TestProjectResourceCRUD(t *testing.T) {
 
 	var readResp resource.ReadResponse
 	t.Run("Read", func(t *testing.T) {
-		clientFactory.OrganizationClient.EXPECT().GetProject(ctx, "proj-123").Return(&langfuse.Project{ID: "proj-123", Name: createName, RetentionDays: 0}, nil)
+		clientFactory.OrganizationClient.EXPECT().GetProject(ctx, "proj-123").Return(&langfuse.Project{
+			ID:            "proj-123",
+			Name:          createName,
+			RetentionDays: 0,
+			Metadata:      createMetadata,
+		}, nil)
 
 		readResp.State.Schema = resourceSchema
 		r.Read(ctx, resource.ReadRequest{State: createResp.State}, &readResp)
@@ -151,13 +172,30 @@ func TestProjectResourceCRUD(t *testing.T) {
 	t.Run("Update", func(t *testing.T) {
 		newName := "ChatQA Plus"
 		newRetention := int32(30)
-		clientFactory.OrganizationClient.EXPECT().UpdateProject(ctx, "proj-123", &langfuse.UpdateProjectRequest{Name: newName, RetentionDays: newRetention}).Return(&langfuse.Project{ID: "proj-123", Name: newName, RetentionDays: newRetention}, nil)
+		newMetadata := map[string]string{"environment": "production", "team": "ai", "version": "2.0"}
+		clientFactory.OrganizationClient.EXPECT().UpdateProject(ctx, "proj-123", &langfuse.UpdateProjectRequest{
+			Name:          newName,
+			RetentionDays: newRetention,
+			Metadata:      newMetadata,
+		}).Return(&langfuse.Project{
+			ID:            "proj-123",
+			Name:          newName,
+			RetentionDays: newRetention,
+			Metadata:      newMetadata,
+		}, nil)
+
+		newMetadataValue := tftypes.NewValue(tftypes.Map{ElementType: tftypes.String}, map[string]tftypes.Value{
+			"environment": tftypes.NewValue(tftypes.String, "production"),
+			"team":        tftypes.NewValue(tftypes.String, "ai"),
+			"version":     tftypes.NewValue(tftypes.String, "2.0"),
+		})
 
 		updateConfig := tfsdk.Config{
 			Raw: buildProjectObjectValue(map[string]tftypes.Value{
 				"id":                       tftypes.NewValue(tftypes.String, "proj-123"),
 				"name":                     tftypes.NewValue(tftypes.String, newName),
 				"retention_days":           tftypes.NewValue(tftypes.Number, big.NewFloat(float64(newRetention))),
+				"metadata":                 newMetadataValue,
 				"organization_id":          tftypes.NewValue(tftypes.String, organizationID),
 				"organization_public_key":  tftypes.NewValue(tftypes.String, publicKey),
 				"organization_private_key": tftypes.NewValue(tftypes.String, privateKey),
@@ -193,15 +231,20 @@ func TestProjectResourceCRUD(t *testing.T) {
 			ID:            "proj-123",
 			Name:          "test-project",
 			RetentionDays: 0, // API returns 0 (doesn't return actual value)
+			Metadata:      map[string]string{"test": "value"},
 		}, nil)
 
 		r.ClientFactory = clientFactory
 
-		// State has retention_days = 30
+		testMetadataValue := tftypes.NewValue(tftypes.Map{ElementType: tftypes.String}, map[string]tftypes.Value{
+			"test": tftypes.NewValue(tftypes.String, "value"),
+		})
+
 		state := buildProjectObjectValue(map[string]tftypes.Value{
 			"id":                       tftypes.NewValue(tftypes.String, "proj-123"),
 			"name":                     tftypes.NewValue(tftypes.String, "test-project"),
 			"retention_days":           tftypes.NewValue(tftypes.Number, big.NewFloat(30)),
+			"metadata":                 testMetadataValue,
 			"organization_id":          tftypes.NewValue(tftypes.String, organizationID),
 			"organization_public_key":  tftypes.NewValue(tftypes.String, "pub-key"),
 			"organization_private_key": tftypes.NewValue(tftypes.String, "priv-key"),
@@ -234,6 +277,7 @@ func buildProjectObjectValue(values map[string]tftypes.Value) tftypes.Value {
 				"id":                       tftypes.String,
 				"name":                     tftypes.String,
 				"retention_days":           tftypes.Number,
+				"metadata":                 tftypes.Map{ElementType: tftypes.String},
 				"organization_id":          tftypes.String,
 				"organization_public_key":  tftypes.String,
 				"organization_private_key": tftypes.String,
@@ -241,6 +285,7 @@ func buildProjectObjectValue(values map[string]tftypes.Value) tftypes.Value {
 			OptionalAttributes: map[string]struct{}{
 				"id":                       {},
 				"retention_days":           {},
+				"metadata":                 {},
 				"organization_id":          {},
 				"organization_public_key":  {},
 				"organization_private_key": {},

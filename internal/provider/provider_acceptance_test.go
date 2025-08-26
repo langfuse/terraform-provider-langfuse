@@ -32,21 +32,25 @@ func TestAccLangfuseWorkflow(t *testing.T) {
 		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
 		CheckDestroy:             testAccCheckLangfuseResourcesDestroyed,
 		Steps: []resource.TestStep{
-			// Step 1: Create Organization
+			// Step 1: Create Organization with metadata
 			{
 				Config: testAccLangfuseWorkflowConfig_Step1(orgName),
 				Check: resource.ComposeAggregateTestCheckFunc(
 					resource.TestCheckResourceAttr("langfuse_organization.test", "name", orgName),
 					resource.TestCheckResourceAttrSet("langfuse_organization.test", "id"),
+					resource.TestCheckResourceAttr("langfuse_organization.test", "metadata.environment", "test"),
+					resource.TestCheckResourceAttr("langfuse_organization.test", "metadata.team", "platform"),
 				),
 			},
 			// Step 2: Create Organization API Key
 			{
 				Config: testAccLangfuseWorkflowConfig_Step2(orgName),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					// Organization still exists
+					// Organization still exists with metadata
 					resource.TestCheckResourceAttr("langfuse_organization.test", "name", orgName),
 					resource.TestCheckResourceAttrSet("langfuse_organization.test", "id"),
+					resource.TestCheckResourceAttr("langfuse_organization.test", "metadata.environment", "test"),
+					resource.TestCheckResourceAttr("langfuse_organization.test", "metadata.team", "platform"),
 					// Organization API Key was created
 					resource.TestCheckResourceAttrSet("langfuse_organization_api_key.test", "id"),
 					resource.TestCheckResourceAttrSet("langfuse_organization_api_key.test", "public_key"),
@@ -54,27 +58,35 @@ func TestAccLangfuseWorkflow(t *testing.T) {
 					resource.TestCheckResourceAttrSet("langfuse_organization_api_key.test", "organization_id"),
 				),
 			},
-			// Step 3: Create Project using Organization API Key
+			// Step 3: Create Project using Organization API Key with metadata
 			{
 				Config: testAccLangfuseWorkflowConfig_Step3(orgName, projectName),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					// Previous resources still exist
+					// Previous resources still exist with metadata
 					resource.TestCheckResourceAttr("langfuse_organization.test", "name", orgName),
+					resource.TestCheckResourceAttr("langfuse_organization.test", "metadata.environment", "test"),
+					resource.TestCheckResourceAttr("langfuse_organization.test", "metadata.team", "platform"),
 					resource.TestCheckResourceAttrSet("langfuse_organization_api_key.test", "public_key"),
-					// Project was created
+					// Project was created with metadata
 					resource.TestCheckResourceAttr("langfuse_project.test", "name", projectName),
 					resource.TestCheckResourceAttrSet("langfuse_project.test", "id"),
 					resource.TestCheckResourceAttr("langfuse_project.test", "retention_days", "30"),
+					resource.TestCheckResourceAttr("langfuse_project.test", "metadata.environment", "development"),
+					resource.TestCheckResourceAttr("langfuse_project.test", "metadata.team", "ai"),
 				),
 			},
 			// Step 4: Create Project API Key
 			{
 				Config: testAccLangfuseWorkflowConfig_Step4(orgName, projectName),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					// All previous resources still exist
+					// All previous resources still exist with metadata
 					resource.TestCheckResourceAttr("langfuse_organization.test", "name", orgName),
+					resource.TestCheckResourceAttr("langfuse_organization.test", "metadata.environment", "test"),
+					resource.TestCheckResourceAttr("langfuse_organization.test", "metadata.team", "platform"),
 					resource.TestCheckResourceAttrSet("langfuse_organization_api_key.test", "public_key"),
 					resource.TestCheckResourceAttr("langfuse_project.test", "name", projectName),
+					resource.TestCheckResourceAttr("langfuse_project.test", "metadata.environment", "development"),
+					resource.TestCheckResourceAttr("langfuse_project.test", "metadata.team", "ai"),
 					// Project API Key was created
 					resource.TestCheckResourceAttrSet("langfuse_project_api_key.test", "id"),
 					resource.TestCheckResourceAttrSet("langfuse_project_api_key.test", "public_key"),
@@ -82,15 +94,21 @@ func TestAccLangfuseWorkflow(t *testing.T) {
 					resource.TestCheckResourceAttrSet("langfuse_project_api_key.test", "project_id"),
 				),
 			},
-			// Step 5: Update resources (test updates work correctly)
+			// Step 5: Update resources with metadata changes (test updates work correctly)
 			{
 				Config: testAccLangfuseWorkflowConfig_Step5(orgName, projectName+"updated"),
 				Check: resource.ComposeAggregateTestCheckFunc(
-					// Organization unchanged
+					// Organization unchanged but metadata updated
 					resource.TestCheckResourceAttr("langfuse_organization.test", "name", orgName),
-					// Project name updated
+					resource.TestCheckResourceAttr("langfuse_organization.test", "metadata.environment", "production"),
+					resource.TestCheckResourceAttr("langfuse_organization.test", "metadata.team", "platform"),
+					resource.TestCheckResourceAttr("langfuse_organization.test", "metadata.version", "2.0"),
+					// Project name and metadata updated
 					resource.TestCheckResourceAttr("langfuse_project.test", "name", projectName+"updated"),
 					resource.TestCheckResourceAttr("langfuse_project.test", "retention_days", "60"),
+					resource.TestCheckResourceAttr("langfuse_project.test", "metadata.environment", "production"),
+					resource.TestCheckResourceAttr("langfuse_project.test", "metadata.team", "ai"),
+					resource.TestCheckResourceAttr("langfuse_project.test", "metadata.version", "1.5"),
 					// API keys still work
 					resource.TestCheckResourceAttrSet("langfuse_organization_api_key.test", "public_key"),
 					resource.TestCheckResourceAttrSet("langfuse_project_api_key.test", "public_key"),
@@ -119,6 +137,10 @@ provider "langfuse" {
 
 resource "langfuse_organization" "test" {
   name = "%s"
+  metadata = {
+    environment = "test"
+    team        = "platform"
+  }
 }
 `, host, adminKey, orgName)
 }
@@ -135,6 +157,10 @@ provider "langfuse" {
 
 resource "langfuse_organization" "test" {
   name = "%s"
+  metadata = {
+    environment = "test"
+    team        = "platform"
+  }
 }
 
 resource "langfuse_organization_api_key" "test" {
@@ -155,6 +181,10 @@ provider "langfuse" {
 
 resource "langfuse_organization" "test" {
   name = "%s"
+  metadata = {
+    environment = "test"
+    team        = "platform"
+  }
 }
 
 resource "langfuse_organization_api_key" "test" {
@@ -167,6 +197,10 @@ resource "langfuse_project" "test" {
   organization_id          = langfuse_organization.test.id
   organization_public_key  = langfuse_organization_api_key.test.public_key
   organization_private_key = langfuse_organization_api_key.test.secret_key
+  metadata = {
+    environment = "development"
+    team        = "ai"
+  }
 }
 `, host, adminKey, orgName, projectName)
 }
@@ -183,6 +217,10 @@ provider "langfuse" {
 
 resource "langfuse_organization" "test" {
   name = "%s"
+  metadata = {
+    environment = "test"
+    team        = "platform"
+  }
 }
 
 resource "langfuse_organization_api_key" "test" {
@@ -195,6 +233,10 @@ resource "langfuse_project" "test" {
   organization_id          = langfuse_organization.test.id
   organization_public_key  = langfuse_organization_api_key.test.public_key
   organization_private_key = langfuse_organization_api_key.test.secret_key
+  metadata = {
+    environment = "development"
+    team        = "ai"
+  }
 }
 
 resource "langfuse_project_api_key" "test" {
@@ -217,6 +259,11 @@ provider "langfuse" {
 
 resource "langfuse_organization" "test" {
   name = "%s"
+  metadata = {
+    environment = "production"
+    team        = "platform"
+    version     = "2.0"
+  }
 }
 
 resource "langfuse_organization_api_key" "test" {
@@ -229,6 +276,11 @@ resource "langfuse_project" "test" {
   organization_id          = langfuse_organization.test.id
   organization_public_key  = langfuse_organization_api_key.test.public_key
   organization_private_key = langfuse_organization_api_key.test.secret_key
+  metadata = {
+    environment = "production"
+    team        = "ai"
+    version     = "1.5"
+  }
 }
 
 resource "langfuse_project_api_key" "test" {

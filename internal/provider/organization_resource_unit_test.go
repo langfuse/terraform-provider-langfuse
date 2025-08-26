@@ -111,16 +111,31 @@ func TestOrganizationResourceCRUD(t *testing.T) {
 	})
 
 	createName := "Acme Inc"
+	createMetadata := map[string]string{"environment": "test", "team": "platform"}
 	var createResp resource.CreateResponse
 	t.Run("Create", func(t *testing.T) {
 		clientFactory.AdminClient.EXPECT().
-			CreateOrganization(ctx, &langfuse.CreateOrganizationRequest{Name: createName}).
-			Return(&langfuse.Organization{ID: "org-123", Name: createName}, nil)
+			CreateOrganization(ctx, &langfuse.CreateOrganizationRequest{
+				Name:     createName,
+				Metadata: createMetadata,
+			}).
+			Return(&langfuse.Organization{
+				ID:       "org-123",
+				Name:     createName,
+				Metadata: createMetadata,
+			}, nil)
+
+		metadataValue := tftypes.NewValue(tftypes.Map{ElementType: tftypes.String}, map[string]tftypes.Value{
+			"environment": tftypes.NewValue(tftypes.String, "test"),
+			"team":        tftypes.NewValue(tftypes.String, "platform"),
+		})
 
 		createConfig := tfsdk.Config{
 			Raw: buildObjectValue(map[string]tftypes.Value{
-				"id":   tftypes.NewValue(tftypes.String, nil),
-				"name": tftypes.NewValue(tftypes.String, createName)}),
+				"id":       tftypes.NewValue(tftypes.String, nil),
+				"name":     tftypes.NewValue(tftypes.String, createName),
+				"metadata": metadataValue,
+			}),
 			Schema: resourceSchema,
 		}
 
@@ -137,7 +152,11 @@ func TestOrganizationResourceCRUD(t *testing.T) {
 	t.Run("Read", func(t *testing.T) {
 		clientFactory.AdminClient.EXPECT().
 			GetOrganization(ctx, "org-123").
-			Return(&langfuse.Organization{ID: "org-123", Name: createName}, nil)
+			Return(&langfuse.Organization{
+				ID:       "org-123",
+				Name:     createName,
+				Metadata: createMetadata,
+			}, nil)
 
 		readResp.State.Schema = resourceSchema
 
@@ -151,14 +170,29 @@ func TestOrganizationResourceCRUD(t *testing.T) {
 	var updateResp resource.UpdateResponse
 	t.Run("Update", func(t *testing.T) {
 		newName := "Acme Corporation"
+		newMetadata := map[string]string{"environment": "production", "team": "platform", "version": "2.0"}
 		clientFactory.AdminClient.EXPECT().
-			UpdateOrganization(ctx, "org-123", &langfuse.UpdateOrganizationRequest{Name: newName}).
-			Return(&langfuse.Organization{ID: "org-123", Name: newName}, nil)
+			UpdateOrganization(ctx, "org-123", &langfuse.UpdateOrganizationRequest{
+				Name:     newName,
+				Metadata: newMetadata,
+			}).
+			Return(&langfuse.Organization{
+				ID:       "org-123",
+				Name:     newName,
+				Metadata: newMetadata,
+			}, nil)
+
+		newMetadataValue := tftypes.NewValue(tftypes.Map{ElementType: tftypes.String}, map[string]tftypes.Value{
+			"environment": tftypes.NewValue(tftypes.String, "production"),
+			"team":        tftypes.NewValue(tftypes.String, "platform"),
+			"version":     tftypes.NewValue(tftypes.String, "2.0"),
+		})
 
 		updateConfig := tfsdk.Config{
 			Raw: buildObjectValue(map[string]tftypes.Value{
-				"id":   tftypes.NewValue(tftypes.String, "org-123"),
-				"name": tftypes.NewValue(tftypes.String, newName),
+				"id":       tftypes.NewValue(tftypes.String, "org-123"),
+				"name":     tftypes.NewValue(tftypes.String, newName),
+				"metadata": newMetadataValue,
 			}),
 			Schema: resourceSchema,
 		}
@@ -192,10 +226,11 @@ func buildObjectValue(values map[string]tftypes.Value) tftypes.Value {
 	return tftypes.NewValue(
 		tftypes.Object{
 			AttributeTypes: map[string]tftypes.Type{
-				"id":   tftypes.String,
-				"name": tftypes.String,
+				"id":       tftypes.String,
+				"name":     tftypes.String,
+				"metadata": tftypes.Map{ElementType: tftypes.String},
 			},
-			OptionalAttributes: map[string]struct{}{"id": {}},
+			OptionalAttributes: map[string]struct{}{"id": {}, "metadata": {}},
 		},
 		values,
 	)
