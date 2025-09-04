@@ -220,6 +220,65 @@ func TestOrganizationResourceCRUD(t *testing.T) {
 			t.Fatalf("unexpected diagnostics from Delete: %v", deleteResp.Diagnostics)
 		}
 	})
+
+	t.Run("ImportState", func(t *testing.T) {
+		importID := "org-456"
+		importName := "Imported Organization"
+		importMetadata := map[string]string{"imported": "true", "source": "external"}
+
+		clientFactory.AdminClient.EXPECT().
+			GetOrganization(ctx, importID).
+			Return(&langfuse.Organization{
+				ID:       importID,
+				Name:     importName,
+				Metadata: importMetadata,
+			}, nil)
+
+		var importResp resource.ImportStateResponse
+		importResp.State.Schema = resourceSchema
+
+		r.ImportState(ctx, resource.ImportStateRequest{ID: importID}, &importResp)
+
+		if importResp.Diagnostics.HasError() {
+			t.Fatalf("unexpected diagnostics from ImportState: %v", importResp.Diagnostics)
+		}
+
+		// Verify that the state was set correctly
+		var orgModel organizationResourceModel
+		diags := importResp.State.Get(ctx, &orgModel)
+		if diags.HasError() {
+			t.Fatalf("unexpected diagnostics getting organization model from imported state: %v", diags)
+		}
+
+		if orgModel.ID.ValueString() != importID {
+			t.Fatalf("unexpected ID in imported state. got %q, want %q", orgModel.ID.ValueString(), importID)
+		}
+
+		if orgModel.Name.ValueString() != importName {
+			t.Fatalf("unexpected name in imported state. got %q, want %q", orgModel.Name.ValueString(), importName)
+		}
+
+		// Verify metadata
+		if orgModel.Metadata.IsNull() {
+			t.Fatalf("metadata should not be null in imported state")
+		}
+
+		var actualMetadata map[string]string
+		diags = orgModel.Metadata.ElementsAs(ctx, &actualMetadata, false)
+		if diags.HasError() {
+			t.Fatalf("unexpected diagnostics extracting metadata: %v", diags)
+		}
+
+		if len(actualMetadata) != len(importMetadata) {
+			t.Fatalf("unexpected metadata length. got %d, want %d", len(actualMetadata), len(importMetadata))
+		}
+
+		for key, expectedValue := range importMetadata {
+			if actualValue, exists := actualMetadata[key]; !exists || actualValue != expectedValue {
+				t.Fatalf("unexpected metadata for key %q. got %q, want %q", key, actualValue, expectedValue)
+			}
+		}
+	})
 }
 
 func buildObjectValue(values map[string]tftypes.Value) tftypes.Value {

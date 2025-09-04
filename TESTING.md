@@ -37,6 +37,7 @@ This approach provides:
 - ✅ **End-to-end integration** testing
 - ✅ **Faster execution** with single setup/teardown
 - ✅ **Better coverage** of cross-resource interactions
+- ✅ **Import functionality** validation for existing resources
 
 ### Prerequisites
 
@@ -121,6 +122,17 @@ All services run in Docker containers with health checks to ensure they're ready
 - Use the `terraform-plugin-testing` framework
 - Test against real Terraform configurations and live Langfuse instance
 - Verify actual resource lifecycle (Create, Read, Update, Delete, Import)
+
+#### Available Acceptance Tests
+
+1. **TestAccLangfuseWorkflow** - Comprehensive workflow test covering all resources in dependency order
+2. **TestAccLangfuseOrganizationImport** - Dedicated test for organization import functionality
+
+To run a specific test:
+```bash
+TF_ACC=1 LANGFUSE_HOST=http://localhost:3000 LANGFUSE_ADMIN_KEY=test_admin_key \
+  go test ./internal/provider -v -run TestAccLangfuseOrganizationImport
+```
 
 ### Test Utilities
 - `testdata/docker-compose.yml` - Test environment definition

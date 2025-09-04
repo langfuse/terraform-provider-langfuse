@@ -6,7 +6,7 @@ test:
 
 # Run acceptance tests (requires docker)
 testacc: test-setup
-	TF_ACC=1 LANGFUSE_HOST=http://localhost:3000 LANGFUSE_ADMIN_KEY=test_admin_key go test ./internal/provider -v -run TestAccLangfuseWorkflow
+	TF_ACC=1 LANGFUSE_HOST=http://localhost:3000 LANGFUSE_ADMIN_KEY=test_admin_key go test ./internal/provider -v -run TestAcc
 
 # Run all tests (unit + acceptance)
 test-all: test testacc

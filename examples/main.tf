@@ -39,6 +39,9 @@ resource "langfuse_organization" "org" {
   }
 }
 
+# To import an existing organization, use:
+# terraform import langfuse_organization.existing_org <organization_id>
+
 resource "langfuse_organization_api_key" "org_key" {
   organization_id = langfuse_organization.org.id
 }

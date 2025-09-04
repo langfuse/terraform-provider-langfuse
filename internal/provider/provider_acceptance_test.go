@@ -305,6 +305,98 @@ provider "langfuse" {
 `, host, adminKey)
 }
 
+// TestAccLangfuseOrganizationImport tests the import functionality for organizations.
+//
+// To run this test:
+// TF_ACC=1 LANGFUSE_HOST=<host> LANGFUSE_ADMIN_KEY=<key> go test -v ./internal/provider -run TestAccLangfuseOrganizationImport
+func TestAccLangfuseOrganizationImport(t *testing.T) {
+	if os.Getenv("TF_ACC") != "1" {
+		t.Skip("TF_ACC not set - skipping acceptance test")
+	}
+
+	testAccPreCheck(t)
+
+	// Generate unique name for this test run
+	rand.Seed(time.Now().UnixNano())
+	orgName := fmt.Sprintf("import-test-org-%d", rand.Intn(1000000))
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckLangfuseResourcesDestroyed,
+		Steps: []resource.TestStep{
+			// Step 1: Create organization normally
+			{
+				Config: testAccLangfuseOrganizationImportConfig_Create(orgName),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("langfuse_organization.import_test", "name", orgName),
+					resource.TestCheckResourceAttrSet("langfuse_organization.import_test", "id"),
+					resource.TestCheckResourceAttr("langfuse_organization.import_test", "metadata.environment", "import-test"),
+					resource.TestCheckResourceAttr("langfuse_organization.import_test", "metadata.source", "acceptance-test"),
+				),
+			},
+			// Step 2: Import the same organization
+			{
+				ResourceName:      "langfuse_organization.import_test",
+				ImportState:       true,
+				ImportStateVerify: true,
+				// ImportStateVerifyIgnore: []string{}, // No fields to ignore for organizations
+			},
+			// Step 3: Verify import worked and we can still manage the resource
+			{
+				Config: testAccLangfuseOrganizationImportConfig_Update(orgName),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("langfuse_organization.import_test", "name", orgName),
+					resource.TestCheckResourceAttrSet("langfuse_organization.import_test", "id"),
+					resource.TestCheckResourceAttr("langfuse_organization.import_test", "metadata.environment", "import-test-updated"),
+					resource.TestCheckResourceAttr("langfuse_organization.import_test", "metadata.source", "acceptance-test"),
+					resource.TestCheckResourceAttr("langfuse_organization.import_test", "metadata.updated", "true"),
+				),
+			},
+		},
+	})
+}
+
+func testAccLangfuseOrganizationImportConfig_Create(orgName string) string {
+	host := os.Getenv("LANGFUSE_HOST")
+	adminKey := os.Getenv("LANGFUSE_ADMIN_KEY")
+
+	return fmt.Sprintf(`
+provider "langfuse" {
+  host          = "%s"
+  admin_api_key = "%s"
+}
+
+resource "langfuse_organization" "import_test" {
+  name = "%s"
+  metadata = {
+    environment = "import-test"
+    source      = "acceptance-test"
+  }
+}
+`, host, adminKey, orgName)
+}
+
+func testAccLangfuseOrganizationImportConfig_Update(orgName string) string {
+	host := os.Getenv("LANGFUSE_HOST")
+	adminKey := os.Getenv("LANGFUSE_ADMIN_KEY")
+
+	return fmt.Sprintf(`
+provider "langfuse" {
+  host          = "%s"
+  admin_api_key = "%s"
+}
+
+resource "langfuse_organization" "import_test" {
+  name = "%s"
+  metadata = {
+    environment = "import-test-updated"
+    source      = "acceptance-test"
+    updated     = "true"
+  }
+}
+`, host, adminKey, orgName)
+}
+
 var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
 	"langfuse": providerserver.NewProtocol6WithError(New("test")()),
 }
