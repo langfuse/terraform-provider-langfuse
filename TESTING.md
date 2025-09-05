@@ -37,6 +37,7 @@ This approach provides:
 - ✅ **End-to-end integration** testing
 - ✅ **Faster execution** with single setup/teardown
 - ✅ **Better coverage** of cross-resource interactions
+- ✅ **Import functionality** validation for existing resources
 
 ### Prerequisites
 

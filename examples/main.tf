@@ -39,6 +39,23 @@ resource "langfuse_organization" "org" {
   }
 }
 
+# Import an existing organization
+import {
+  to = langfuse_organization.existing_org
+  id = "1"
+}
+
+resource "langfuse_organization" "existing_org" {
+  name = "Existing Corp"
+  
+  metadata = {
+    environment = "production"
+    team        = "platform"
+    cost_center = "engineering"
+    region      = "us-east-1"
+  }
+}
+
 resource "langfuse_organization_api_key" "org_key" {
   organization_id = langfuse_organization.org.id
 }

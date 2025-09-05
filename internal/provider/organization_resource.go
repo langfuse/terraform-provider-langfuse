@@ -4,14 +4,16 @@ import (
 	"context"
 	"strings"
 
-	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
 )
 
 var _ resource.Resource = &organizationResource{}
+var _ resource.ResourceWithImportState = &organizationResource{}
 
 func NewOrganizationResource() resource.Resource {
 	return &organizationResource{}
@@ -219,4 +221,40 @@ func (r *organizationResource) Delete(ctx context.Context, req resource.DeleteRe
 		Name:     types.StringValue(""),
 		Metadata: types.MapNull(types.StringType),
 	})...)
+}
+
+func (r *organizationResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	// Import by organization ID
+	orgID := req.ID
+
+	// Use the GetOrganization API to fetch the organization details
+	org, err := r.AdminClient.GetOrganization(ctx, orgID)
+	if err != nil {
+		resp.Diagnostics.AddError("Error importing organization",
+			"Could not read organization "+orgID+": "+err.Error())
+		return
+	}
+
+	// Convert metadata to the appropriate type
+	var metadataMap types.Map
+	if len(org.Metadata) > 0 {
+		var diags diag.Diagnostics
+		metadataMap, diags = types.MapValueFrom(ctx, types.StringType, org.Metadata)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	} else {
+		metadataMap = types.MapNull(types.StringType)
+	}
+
+	// Set the imported state
+	resp.Diagnostics.Append(resp.State.Set(ctx, &organizationResourceModel{
+		ID:       types.StringValue(org.ID),
+		Name:     types.StringValue(org.Name),
+		Metadata: metadataMap,
+	})...)
+
+	// Set the ID attribute explicitly (this is a best practice for import)
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
 }
