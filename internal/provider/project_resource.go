@@ -2,17 +2,20 @@ package provider
 
 import (
 	"context"
+	"strings"
 
-	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
+	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
 )
 
 var _ resource.Resource = &projectResource{}
+var _ resource.ResourceWithImportState = &projectResource{}
 
 func NewProjectResource() resource.Resource {
 	return &projectResource{}
@@ -265,4 +268,57 @@ func (r *projectResource) Delete(ctx context.Context, req resource.DeleteRequest
 		OrganizationPublicKey:  types.StringValue(""),
 		OrganizationPrivateKey: types.StringValue(""),
 	})...)
+}
+
+func (r *projectResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	// Import format: project_id,organization_id,organization_public_key,organization_private_key
+	// Example: terraform import langfuse_project.example "proj_123,org_456,pk_789,sk_012"
+
+	importParts := strings.Split(req.ID, ",")
+	if len(importParts) != 4 {
+		resp.Diagnostics.AddError("Invalid import format",
+			"Import ID must be in format: project_id,organization_id,organization_public_key,organization_private_key")
+		return
+	}
+
+	projectID := importParts[0]
+	organizationID := importParts[1]
+	organizationPublicKey := importParts[2]
+	organizationPrivateKey := importParts[3]
+
+	// Get the project details using the provided organization credentials
+	organizationClient := r.ClientFactory.NewOrganizationClient(organizationPublicKey, organizationPrivateKey)
+	project, err := organizationClient.GetProject(ctx, projectID)
+	if err != nil {
+		resp.Diagnostics.AddError("Error importing project",
+			"Could not read project "+projectID+": "+err.Error())
+		return
+	}
+
+	// Convert metadata to the appropriate type
+	var metadataMap types.Map
+	if len(project.Metadata) > 0 {
+		var diags diag.Diagnostics
+		metadataMap, diags = types.MapValueFrom(ctx, types.StringType, project.Metadata)
+		resp.Diagnostics.Append(diags...)
+		if resp.Diagnostics.HasError() {
+			return
+		}
+	} else {
+		metadataMap = types.MapNull(types.StringType)
+	}
+
+	// Set the imported state with all required information
+	resp.Diagnostics.Append(resp.State.Set(ctx, &projectResourceModel{
+		ID:                     types.StringValue(project.ID),
+		Name:                   types.StringValue(project.Name),
+		RetentionDays:          types.Int32Value(0), // Default value since retention_days is write-only in Langfuse API
+		Metadata:               metadataMap,
+		OrganizationID:         types.StringValue(organizationID),
+		OrganizationPublicKey:  types.StringValue(organizationPublicKey),
+		OrganizationPrivateKey: types.StringValue(organizationPrivateKey),
+	})...)
+
+	// Set the ID attribute explicitly to just the project ID (not the full import string)
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), resource.ImportStateRequest{ID: projectID}, resp)
 }

@@ -2,7 +2,9 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -266,6 +268,161 @@ func TestProjectResourceCRUD(t *testing.T) {
 
 		if stateData.RetentionDays.ValueInt32() != 30 {
 			t.Errorf("expected retention_days to be preserved as 30, got %d", stateData.RetentionDays.ValueInt32())
+		}
+	})
+}
+
+func TestProjectResourceImport(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ctx := context.Background()
+
+	r, ok := NewProjectResource().(*projectResource)
+	if !ok {
+		t.Fatalf("NewProjectResource did not return a *projectResource as expected")
+	}
+
+	clientFactory := mocks.NewMockClientFactory(ctrl)
+
+	// Configure the resource
+	var configureResp resource.ConfigureResponse
+	r.Configure(ctx, resource.ConfigureRequest{ProviderData: clientFactory}, &configureResp)
+	if configureResp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics from Configure: %v", configureResp.Diagnostics)
+	}
+
+	// Get the schema
+	var schemaResp resource.SchemaResponse
+	r.Schema(ctx, resource.SchemaRequest{}, &schemaResp)
+	if schemaResp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics from Schema: %v", schemaResp.Diagnostics)
+	}
+
+	// Test data
+	projectID := "proj-123"
+	organizationID := "org-456"
+	publicKey := "pk-789"
+	privateKey := "sk-012"
+	projectName := "Test Project"
+	projectMetadata := map[string]string{"environment": "test", "team": "ai"}
+
+	// Mock the organization client and its GetProject method
+	clientFactory.OrganizationClient.EXPECT().GetProject(ctx, projectID).Return(&langfuse.Project{
+		ID:            projectID,
+		Name:          projectName,
+		RetentionDays: 0, // API doesn't return retention_days
+		Metadata:      projectMetadata,
+	}, nil)
+
+	// Test successful import
+	t.Run("Successful import", func(t *testing.T) {
+		importID := projectID + "," + organizationID + "," + publicKey + "," + privateKey
+
+		var importResp resource.ImportStateResponse
+		importResp.State.Schema = schemaResp.Schema
+
+		r.ImportState(ctx, resource.ImportStateRequest{ID: importID}, &importResp)
+
+		if importResp.Diagnostics.HasError() {
+			t.Fatalf("unexpected diagnostics from ImportState: %v", importResp.Diagnostics)
+		}
+
+		// Verify the imported state
+		var stateData projectResourceModel
+		importResp.State.Get(ctx, &stateData)
+
+		if stateData.ID.ValueString() != projectID {
+			t.Errorf("expected ID %q, got %q", projectID, stateData.ID.ValueString())
+		}
+		if stateData.Name.ValueString() != projectName {
+			t.Errorf("expected Name %q, got %q", projectName, stateData.Name.ValueString())
+		}
+		if stateData.OrganizationID.ValueString() != organizationID {
+			t.Errorf("expected OrganizationID %q, got %q", organizationID, stateData.OrganizationID.ValueString())
+		}
+		if stateData.OrganizationPublicKey.ValueString() != publicKey {
+			t.Errorf("expected OrganizationPublicKey %q, got %q", publicKey, stateData.OrganizationPublicKey.ValueString())
+		}
+		if stateData.OrganizationPrivateKey.ValueString() != privateKey {
+			t.Errorf("expected OrganizationPrivateKey %q, got %q", privateKey, stateData.OrganizationPrivateKey.ValueString())
+		}
+		if stateData.RetentionDays.ValueInt32() != 0 {
+			t.Errorf("expected RetentionDays 0 (default value since Langfuse API doesn't return retention_days), got %d", stateData.RetentionDays.ValueInt32())
+		}
+
+		// Verify metadata
+		if stateData.Metadata.IsNull() {
+			t.Error("expected metadata to not be null")
+		} else {
+			var metadata map[string]string
+			stateData.Metadata.ElementsAs(ctx, &metadata, false)
+			if len(metadata) != 2 {
+				t.Errorf("expected 2 metadata items, got %d", len(metadata))
+			}
+			if metadata["environment"] != "test" {
+				t.Errorf("expected environment=test, got %q", metadata["environment"])
+			}
+			if metadata["team"] != "ai" {
+				t.Errorf("expected team=ai, got %q", metadata["team"])
+			}
+		}
+	})
+
+	// Test invalid import format
+	t.Run("Invalid import format", func(t *testing.T) {
+		invalidImportID := "just-project-id" // Missing other required parts
+
+		var importResp resource.ImportStateResponse
+		importResp.State.Schema = schemaResp.Schema
+
+		r.ImportState(ctx, resource.ImportStateRequest{ID: invalidImportID}, &importResp)
+
+		if !importResp.Diagnostics.HasError() {
+			t.Fatal("expected diagnostics error for invalid import format")
+		}
+
+		// Check that the error message mentions the expected format
+		errorFound := false
+		for _, diag := range importResp.Diagnostics {
+			if diag.Summary() == "Invalid import format" {
+				errorFound = true
+				break
+			}
+		}
+		if !errorFound {
+			t.Error("expected 'Invalid import format' error message")
+		}
+	})
+
+	// Test import with API error
+	t.Run("Import with API error", func(t *testing.T) {
+		importID := projectID + "," + organizationID + "," + publicKey + "," + privateKey
+
+		// Mock API error
+		clientFactory.OrganizationClient.EXPECT().GetProject(ctx, projectID).Return(nil, fmt.Errorf("project not found"))
+
+		var importResp resource.ImportStateResponse
+		importResp.State.Schema = schemaResp.Schema
+
+		r.ImportState(ctx, resource.ImportStateRequest{ID: importID}, &importResp)
+
+		if !importResp.Diagnostics.HasError() {
+			t.Fatal("expected diagnostics error for API error")
+		}
+
+		// Check that the error message mentions the project ID
+		errorFound := false
+		for _, diag := range importResp.Diagnostics {
+			if strings.Contains(diag.Detail(), projectID) {
+				errorFound = true
+				break
+			}
+		}
+		if !errorFound {
+			t.Error("expected error message to contain project ID")
 		}
 	})
 }
