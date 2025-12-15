@@ -119,7 +119,7 @@ func (r *organizationMembershipResource) Create(ctx context.Context, req resourc
 	}
 
 	// Validate role is one of the allowed values
-	validRoles := []string{"OWNER","ADMIN", "MEMBER", "VIEWER"}
+	validRoles := []string{"OWNER","ADMIN", "MEMBER", "VIEWER","NONE"}
 	role := plan.Role.ValueString()
 	isValidRole := false
 	for _, validRole := range validRoles {
@@ -306,7 +306,7 @@ func (r *organizationMembershipResource) Update(ctx context.Context, req resourc
 	}
 
 	// Validate role is one of the allowed values
-	validRoles := []string{"OWNER", "ADMIN", "MEMBER", "VIEWER"}
+	validRoles := []string{"OWNER", "ADMIN", "MEMBER", "VIEWER","NONE"}
 	role := plan.Role.ValueString()
 	isValidRole := false
 	for _, validRole := range validRoles {

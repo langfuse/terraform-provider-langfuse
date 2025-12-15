@@ -207,7 +207,7 @@ Manages organization membership - invites users to organizations and manages the
 #### Arguments
 
 - `email` (String, Required, ForceNew) - The email address of the user to add to the organization
-- `role` (String, Required) - The role to assign to the user. Valid values: `ADMIN`, `MEMBER`, `VIEWER`
+- `role` (String, Required) - The role to assign to the user. Valid values:`OWNER`, `ADMIN`, `MEMBER`, `VIEWER` or `NONE`
 - `organization_public_key` (String, Required, Sensitive, ForceNew) - Organization public key for authentication
 - `organization_private_key` (String, Required, Sensitive, ForceNew) - Organization private key for authentication
 
