@@ -3,7 +3,6 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
   push:
     branches: [main]
 
@@ -62,6 +61,8 @@ jobs:
           cache: true
       - name: Start test environment
         run: make test-setup
+        env:
+          LANGFUSE_EE_LICENSE_KEY: ${{ secrets.LANGFUSE_EE_LICENSE_KEY }}
       - name: Run acceptance tests
         run: make testacc
       - name: Teardown test environment
