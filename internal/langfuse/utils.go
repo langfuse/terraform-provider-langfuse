@@ -29,7 +29,7 @@ func buildBaseRequest(ctx context.Context, method, url string, body any) (*http.
 }
 
 func decodeResponse(resp *http.Response, target any) error {
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, _ := io.ReadAll(resp.Body)

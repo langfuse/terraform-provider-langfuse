@@ -5,7 +5,6 @@ import (
 	"math/rand"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
@@ -24,7 +23,6 @@ func TestAccLangfuseWorkflow(t *testing.T) {
 	testAccPreCheck(t)
 
 	// Generate unique names for this test run
-	rand.Seed(time.Now().UnixNano())
 	orgName := fmt.Sprintf("test-org-%d", rand.Intn(1000000))
 	projectName := fmt.Sprintf("test-project-%d", rand.Intn(1000000))
 
@@ -313,7 +311,6 @@ func TestAccLangfuseOrganizationImport(t *testing.T) {
 	testAccPreCheck(t)
 
 	// Generate unique names for this test run
-	rand.Seed(time.Now().UnixNano())
 	orgName := fmt.Sprintf("import-test-org-%d", rand.Intn(1000000))
 	projectName := fmt.Sprintf("import-test-project-%d", rand.Intn(1000000))
 
