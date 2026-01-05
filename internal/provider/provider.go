@@ -4,12 +4,12 @@ import (
 	"context"
 	"os"
 
-	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
 )
 
 var _ provider.Provider = &langfuseProvider{}
@@ -75,6 +75,7 @@ func (p *langfuseProvider) Resources(ctx context.Context) []func() resource.Reso
 	return []func() resource.Resource{
 		NewOrganizationResource,
 		NewOrganizationApiKeyResource,
+		NewOrganizationMembershipResource,
 		NewProjectResource,
 		NewProjectApiKeyResource,
 	}

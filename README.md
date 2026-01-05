@@ -200,6 +200,65 @@ Manages API keys for projects.
 - `public_key` (String, Sensitive) - The public API key value
 - `secret_key` (String, Sensitive) - The secret API key value
 
+### `langfuse_organization_membership`
+
+Manages organization membership - invites users to organizations and manages their roles. This resource automatically creates users in the Langfuse system via the SCIM endpoint if they don't already exist.
+
+#### Arguments
+
+- `email` (String, Required, ForceNew) - The email address of the user to add to the organization
+- `role` (String, Required) - The role to assign to the user. Valid values:`OWNER`, `ADMIN`, `MEMBER`, `VIEWER` or `NONE`
+- `organization_public_key` (String, Required, Sensitive, ForceNew) - Organization public key for authentication
+- `organization_private_key` (String, Required, Sensitive, ForceNew) - Organization private key for authentication
+
+#### Attributes
+
+- `id` (String) - The unique identifier of the membership
+- `user_id` (String) - The unique identifier of the user
+- `status` (String) - The status of the membership (e.g., "ACTIVE")
+- `username` (String) - The username of the user
+
+#### Behavior
+
+- **Automatic User Creation**: If the user doesn't exist in the organization, the resource automatically creates them using the SCIM endpoint before adding them to the organization
+- **Role Updates**: The role can be updated after creation using Terraform `apply` with the updated role value
+- **Deletion**: When the resource is destroyed, the user is removed from the organization (but not deleted from the Langfuse system)
+- **Resource ID**: The resource ID is set to the user's `userId` from the Langfuse system, which uniquely identifies the membership within the organization
+
+#### Example Usage
+
+```hcl
+# Create organization membership with automatic user creation
+resource "langfuse_organization_membership" "engineer" {
+  email                    = "engineer@example.com"
+  role                     = "MEMBER"
+  organization_public_key  = langfuse_organization_api_key.org_key.public_key
+  organization_private_key = langfuse_organization_api_key.org_key.secret_key
+}
+
+# Update user role
+resource "langfuse_organization_membership" "admin" {
+  email                    = "admin@example.com"
+  role                     = "ADMIN"
+  organization_public_key  = langfuse_organization_api_key.org_key.public_key
+  organization_private_key = langfuse_organization_api_key.org_key.secret_key
+}
+
+# Multiple users in organization
+resource "langfuse_organization_membership" "team" {
+  for_each = toset([
+    "dev1@example.com",
+    "dev2@example.com",
+    "qa@example.com"
+  ])
+
+  email                    = each.value
+  role                     = "MEMBER"
+  organization_public_key  = langfuse_organization_api_key.org_key.public_key
+  organization_private_key = langfuse_organization_api_key.org_key.secret_key
+}
+```
+
 ## Development
 
 ### Setup

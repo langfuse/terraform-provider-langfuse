@@ -8,8 +8,8 @@ import (
 	context "context"
 	reflect "reflect"
 
-	langfuse "github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
 	gomock "github.com/golang/mock/gomock"
+	langfuse "github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
 )
 
 // MockAdminClient is a mock of AdminClient interface.
