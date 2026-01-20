@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -368,5 +367,39 @@ func (r *organizationMembershipResource) Delete(ctx context.Context, req resourc
 }
 
 func (r *organizationMembershipResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+	// Import format: membership_id,organization_public_key,organization_private_key
+	// Example: terraform import langfuse_organization_membership.example "mem_123,pk_456,sk_789"
+
+	importParts := strings.Split(req.ID, ",")
+	if len(importParts) != 3 {
+		resp.Diagnostics.AddError("Invalid import format",
+			"Import ID must be in format: membership_id,organization_public_key,organization_private_key")
+		return
+	}
+
+	membershipID := importParts[0]
+	orgPublicKey := importParts[1]
+	orgPrivateKey := importParts[2]
+
+	// Validate we can fetch the membership with the provided credentials
+	organizationClient := r.ClientFactory.NewOrganizationClient(orgPublicKey, orgPrivateKey)
+
+	membership, err := organizationClient.GetMembership(ctx, membershipID)
+	if err != nil {
+		resp.Diagnostics.AddError("Error importing membership",
+			fmt.Sprintf("Could not read membership %s: %s", membershipID, err.Error()))
+		return
+	}
+
+	// Set the imported state with all required information
+	resp.Diagnostics.Append(resp.State.Set(ctx, &organizationMembershipResourceModel{
+		ID:                     types.StringValue(membershipID),
+		Email:                  types.StringValue(membership.Email),
+		Role:                   types.StringValue(membership.Role),
+		Status:                 types.StringValue(membership.Status),
+		UserID:                 types.StringValue(membership.UserID),
+		Username:               types.StringValue(membership.Username),
+		OrganizationPublicKey:  types.StringValue(orgPublicKey),
+		OrganizationPrivateKey: types.StringValue(orgPrivateKey),
+	})...)
 }

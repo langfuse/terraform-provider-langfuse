@@ -2,11 +2,15 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
+	"github.com/golang/mock/gomock"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
+	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
+	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse/mocks"
 )
 
 func TestOrganizationMembershipResourceMetadata(t *testing.T) {
@@ -162,4 +166,197 @@ func TestOrganizationMembershipResource_Update_InvalidRole(t *testing.T) {
 	if errorSummary != "Invalid Role" {
 		t.Fatalf("unexpected error summary. got %q, want %q", errorSummary, "Invalid Role")
 	}
+}
+
+func TestOrganizationMembershipResourceImport(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ctx := context.Background()
+
+	r := NewOrganizationMembershipResource().(*organizationMembershipResource)
+
+	clientFactory := mocks.NewMockClientFactory(ctrl)
+
+	// Configure the resource
+	var configureResp resource.ConfigureResponse
+	r.Configure(ctx, resource.ConfigureRequest{ProviderData: clientFactory}, &configureResp)
+	if configureResp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics from Configure: %v", configureResp.Diagnostics)
+	}
+
+	// Get the schema
+	var schemaResp resource.SchemaResponse
+	r.Schema(ctx, resource.SchemaRequest{}, &schemaResp)
+	if schemaResp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics from Schema: %v", schemaResp.Diagnostics)
+	}
+
+	t.Run("Successful import", func(t *testing.T) {
+		membershipID := "mem-123"
+		publicKey := "pk-456"
+		privateKey := "sk-789"
+
+		// Mock the GetMembership call
+		clientFactory.OrganizationClient.EXPECT().
+			GetMembership(ctx, membershipID).
+			Return(&langfuse.OrganizationMembership{
+				ID:       membershipID,
+				Email:    "test@example.com",
+				Role:     "ADMIN",
+				Status:   "ACTIVE",
+				UserID:   "user-123",
+				Username: "testuser",
+			}, nil)
+
+		importID := membershipID + "," + publicKey + "," + privateKey
+
+		var importResp resource.ImportStateResponse
+		importResp.State.Schema = schemaResp.Schema
+
+		r.ImportState(ctx, resource.ImportStateRequest{ID: importID}, &importResp)
+
+		if importResp.Diagnostics.HasError() {
+			t.Fatalf("unexpected diagnostics from ImportState: %v", importResp.Diagnostics)
+		}
+
+		// Verify the imported state
+		var stateData organizationMembershipResourceModel
+		importResp.State.Get(ctx, &stateData)
+
+		if stateData.ID.ValueString() != membershipID {
+			t.Errorf("expected ID %q, got %q", membershipID, stateData.ID.ValueString())
+		}
+		if stateData.Email.ValueString() != "test@example.com" {
+			t.Errorf("expected Email %q, got %q", "test@example.com", stateData.Email.ValueString())
+		}
+		if stateData.Role.ValueString() != "ADMIN" {
+			t.Errorf("expected Role %q, got %q", "ADMIN", stateData.Role.ValueString())
+		}
+		if stateData.Status.ValueString() != "ACTIVE" {
+			t.Errorf("expected Status %q, got %q", "ACTIVE", stateData.Status.ValueString())
+		}
+		if stateData.UserID.ValueString() != "user-123" {
+			t.Errorf("expected UserID %q, got %q", "user-123", stateData.UserID.ValueString())
+		}
+		if stateData.Username.ValueString() != "testuser" {
+			t.Errorf("expected Username %q, got %q", "testuser", stateData.Username.ValueString())
+		}
+		if stateData.OrganizationPublicKey.ValueString() != publicKey {
+			t.Errorf("expected OrganizationPublicKey %q, got %q", publicKey, stateData.OrganizationPublicKey.ValueString())
+		}
+		if stateData.OrganizationPrivateKey.ValueString() != privateKey {
+			t.Errorf("expected OrganizationPrivateKey %q, got %q", privateKey, stateData.OrganizationPrivateKey.ValueString())
+		}
+	})
+
+	t.Run("Invalid import format - missing parts", func(t *testing.T) {
+		// Only membership ID, missing public and private keys
+		importID := "mem-123"
+
+		var importResp resource.ImportStateResponse
+		importResp.State.Schema = schemaResp.Schema
+
+		r.ImportState(ctx, resource.ImportStateRequest{ID: importID}, &importResp)
+
+		if !importResp.Diagnostics.HasError() {
+			t.Fatal("expected diagnostics error for invalid import format")
+		}
+
+		errorFound := false
+		for _, diag := range importResp.Diagnostics {
+			if diag.Summary() == "Invalid import format" {
+				errorFound = true
+				break
+			}
+		}
+		if !errorFound {
+			t.Error("expected 'Invalid import format' error message")
+		}
+	})
+
+	t.Run("Invalid import format - too many parts", func(t *testing.T) {
+		// Too many parts
+		importID := "mem-123,pk-456,sk-789,extra-part"
+
+		var importResp resource.ImportStateResponse
+		importResp.State.Schema = schemaResp.Schema
+
+		r.ImportState(ctx, resource.ImportStateRequest{ID: importID}, &importResp)
+
+		if !importResp.Diagnostics.HasError() {
+			t.Fatal("expected diagnostics error for invalid import format")
+		}
+
+		errorFound := false
+		for _, diag := range importResp.Diagnostics {
+			if diag.Summary() == "Invalid import format" {
+				errorFound = true
+				break
+			}
+		}
+		if !errorFound {
+			t.Error("expected 'Invalid import format' error message")
+		}
+	})
+
+	t.Run("Invalid import format - only two parts", func(t *testing.T) {
+		// Two parts instead of three
+		importID := "mem-123,pk-456"
+
+		var importResp resource.ImportStateResponse
+		importResp.State.Schema = schemaResp.Schema
+
+		r.ImportState(ctx, resource.ImportStateRequest{ID: importID}, &importResp)
+
+		if !importResp.Diagnostics.HasError() {
+			t.Fatal("expected diagnostics error for invalid import format")
+		}
+
+		errorFound := false
+		for _, diag := range importResp.Diagnostics {
+			if diag.Summary() == "Invalid import format" {
+				errorFound = true
+				break
+			}
+		}
+		if !errorFound {
+			t.Error("expected 'Invalid import format' error message")
+		}
+	})
+
+	t.Run("Import with API error", func(t *testing.T) {
+		membershipID := "mem-nonexistent"
+		publicKey := "pk-456"
+		privateKey := "sk-789"
+
+		// Mock API error
+		clientFactory.OrganizationClient.EXPECT().
+			GetMembership(ctx, membershipID).
+			Return(nil, fmt.Errorf("cannot find membership"))
+
+		importID := membershipID + "," + publicKey + "," + privateKey
+
+		var importResp resource.ImportStateResponse
+		importResp.State.Schema = schemaResp.Schema
+
+		r.ImportState(ctx, resource.ImportStateRequest{ID: importID}, &importResp)
+
+		if !importResp.Diagnostics.HasError() {
+			t.Fatal("expected diagnostics error for API error")
+		}
+
+		errorFound := false
+		for _, diag := range importResp.Diagnostics {
+			if diag.Summary() == "Error importing membership" {
+				errorFound = true
+				break
+			}
+		}
+		if !errorFound {
+			t.Error("expected 'Error importing membership' error message")
+		}
+	})
 }
