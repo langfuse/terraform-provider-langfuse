@@ -5,11 +5,13 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
 )
@@ -83,8 +85,11 @@ func (r *projectMembershipResource) Schema(ctx context.Context, req resource.Sch
 				},
 			},
 			"role": schema.StringAttribute{
-				Description: "The role to assign to the user. Valid values are: ADMIN, MEMBER, VIEWER.",
+				Description: "The role to assign to the user. Valid values are: OWNER, ADMIN, MEMBER, VIEWER, NONE.",
 				Required:    true,
+				Validators: []validator.String{
+					stringvalidator.OneOf("OWNER", "ADMIN", "MEMBER", "VIEWER", "NONE"),
+				},
 			},
 			"user_id": schema.StringAttribute{
 				Description: "The unique identifier of the user.",
@@ -121,23 +126,7 @@ func (r *projectMembershipResource) Create(ctx context.Context, req resource.Cre
 		return
 	}
 
-	// Validate role
-	validRoles := []string{"ADMIN", "MEMBER", "VIEWER"}
 	role := plan.Role.ValueString()
-	isValidRole := false
-	for _, validRole := range validRoles {
-		if role == validRole {
-			isValidRole = true
-			break
-		}
-	}
-	if !isValidRole {
-		resp.Diagnostics.AddError(
-			"Invalid Role",
-			fmt.Sprintf("Role must be one of: %s. Got: %s", strings.Join(validRoles, ", "), role),
-		)
-		return
-	}
 
 	organizationClient := r.ClientFactory.NewOrganizationClient(
 		plan.OrganizationPublicKey.ValueString(),
@@ -216,23 +205,7 @@ func (r *projectMembershipResource) Update(ctx context.Context, req resource.Upd
 		return
 	}
 
-	// Validate role
-	validRoles := []string{"ADMIN", "MEMBER", "VIEWER"}
 	role := plan.Role.ValueString()
-	isValidRole := false
-	for _, validRole := range validRoles {
-		if role == validRole {
-			isValidRole = true
-			break
-		}
-	}
-	if !isValidRole {
-		resp.Diagnostics.AddError(
-			"Invalid Role",
-			fmt.Sprintf("Role must be one of: %s. Got: %s", strings.Join(validRoles, ", "), role),
-		)
-		return
-	}
 
 	organizationClient := r.ClientFactory.NewOrganizationClient(
 		state.OrganizationPublicKey.ValueString(),
