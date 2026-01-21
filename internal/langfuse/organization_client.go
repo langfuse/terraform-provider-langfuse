@@ -93,6 +93,34 @@ type removeMemberResponse struct {
 	Message string `json:"message"`
 }
 
+// Project Membership types
+type ProjectMembership struct {
+	ID        string `json:"id"`
+	UserID    string `json:"userId"`
+	ProjectID string `json:"projectId"`
+	Role      string `json:"role"`
+	Email     string `json:"email"`
+	Username  string `json:"username"`
+}
+
+type CreateProjectMembershipRequest struct {
+	Email string `json:"email"`
+	Role  string `json:"role"`
+}
+
+type DeleteProjectMembershipRequest struct {
+	Email string `json:"email"`
+}
+
+type listProjectMembershipsResponse struct {
+	Memberships []ProjectMembership `json:"memberships"`
+}
+
+type deleteProjectMembershipResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
 //go:generate mockgen -destination=./mocks/mock_organization_client.go -package=mocks github.com/langfuse/terraform-provider-langfuse/internal/langfuse OrganizationClient
 
 type OrganizationClient interface {
@@ -109,6 +137,11 @@ type OrganizationClient interface {
 	UpdateMembership(ctx context.Context, membershipID string, request *UpdateMembershipRequest) (*OrganizationMembership, error)
 	RemoveMember(ctx context.Context, membershipID string) error
 	CreateSCIMUser(ctx context.Context, request *SCIMUserRequest) (*SCIMUserResponse, error)
+	// Project membership methods
+	ListProjectMemberships(ctx context.Context, projectID string) ([]ProjectMembership, error)
+	GetProjectMembership(ctx context.Context, projectID, membershipID string) (*ProjectMembership, error)
+	CreateOrUpdateProjectMembership(ctx context.Context, projectID string, request *CreateProjectMembershipRequest) (*ProjectMembership, error)
+	DeleteProjectMembership(ctx context.Context, projectID, email string) error
 }
 
 type organizationClientImpl struct {
@@ -363,6 +396,75 @@ func (c *organizationClientImpl) CreateSCIMUser(ctx context.Context, request *SC
 	}
 
 	return &scimUser, nil
+}
+
+// Project membership methods
+
+func (c *organizationClientImpl) ListProjectMemberships(ctx context.Context, projectID string) ([]ProjectMembership, error) {
+	resp, err := c.makeRequest(ctx, http.MethodGet, fmt.Sprintf("api/public/projects/%s/memberships", projectID), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var listResp listProjectMembershipsResponse
+	if err := decodeResponse(resp, &listResp); err != nil {
+		return nil, err
+	}
+
+	return listResp.Memberships, nil
+}
+
+func (c *organizationClientImpl) GetProjectMembership(ctx context.Context, projectID, membershipID string) (*ProjectMembership, error) {
+	memberships, err := c.ListProjectMemberships(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, membership := range memberships {
+		// Check both ID and UserID as the API may not return consistent IDs
+		if membership.ID == membershipID || membership.UserID == membershipID {
+			return &membership, nil
+		}
+	}
+
+	return nil, fmt.Errorf("cannot find project membership with ID %s in project %s", membershipID, projectID)
+}
+
+func (c *organizationClientImpl) CreateOrUpdateProjectMembership(ctx context.Context, projectID string, request *CreateProjectMembershipRequest) (*ProjectMembership, error) {
+	resp, err := c.makeRequest(ctx, http.MethodPut, fmt.Sprintf("api/public/projects/%s/memberships", projectID), request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create/update project membership: %w", err)
+	}
+
+	var membership ProjectMembership
+	if err := decodeResponse(resp, &membership); err != nil {
+		return nil, fmt.Errorf("failed to decode project membership response: %w", err)
+	}
+
+	return &membership, nil
+}
+
+func (c *organizationClientImpl) DeleteProjectMembership(ctx context.Context, projectID, email string) error {
+	deleteRequest := DeleteProjectMembershipRequest{
+		Email: email,
+	}
+
+	resp, err := c.makeRequest(ctx, http.MethodDelete, fmt.Sprintf("api/public/projects/%s/memberships", projectID), deleteRequest)
+	if err != nil {
+		return err
+	}
+
+	var deleteResp deleteProjectMembershipResponse
+	if err := decodeResponse(resp, &deleteResp); err != nil {
+		return err
+	}
+
+	// Handle success pattern (following org membership pattern)
+	if !deleteResp.Success && !strings.Contains(strings.ToLower(deleteResp.Message), "deleted") && !strings.Contains(strings.ToLower(deleteResp.Message), "removed") {
+		return fmt.Errorf("failed to remove project member with email %s from project %s: %s", email, projectID, deleteResp.Message)
+	}
+
+	return nil
 }
 
 func (c *organizationClientImpl) makeRequest(ctx context.Context, methodType, apiPath string, body any) (*http.Response, error) {
