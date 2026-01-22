@@ -46,7 +46,7 @@ func TestProjectMembershipResourceSchema(t *testing.T) {
 	}
 
 	expectedAttributes := []string{
-		"id", "project_id", "user_email", "role", "user_id", "username",
+		"id", "project_id", "email", "role", "user_id", "username",
 		"organization_public_key", "organization_private_key",
 	}
 
@@ -224,19 +224,19 @@ func TestProjectMembershipResourceCRUD(t *testing.T) {
 			t.Fatalf("unexpected role in imported state. got %q, want %q", model.Role.ValueString(), "VIEWER")
 		}
 
-		if model.UserEmail.ValueString() != "imported@example.com" {
-			t.Fatalf("unexpected user_email in imported state. got %q, want %q", model.UserEmail.ValueString(), "imported@example.com")
+		if model.Email.ValueString() != "imported@example.com" {
+			t.Fatalf("unexpected email in imported state. got %q, want %q", model.Email.ValueString(), "imported@example.com")
 		}
 	})
 }
 
-func buildProjectMembershipObjectValue(projectID, userEmail, role, publicKey, privateKey string) tftypes.Value {
+func buildProjectMembershipObjectValue(projectID, email, role, publicKey, privateKey string) tftypes.Value {
 	return tftypes.NewValue(
 		tftypes.Object{
 			AttributeTypes: map[string]tftypes.Type{
 				"id":                       tftypes.String,
 				"project_id":               tftypes.String,
-				"user_email":               tftypes.String,
+				"email":                    tftypes.String,
 				"role":                     tftypes.String,
 				"user_id":                  tftypes.String,
 				"username":                 tftypes.String,
@@ -247,7 +247,7 @@ func buildProjectMembershipObjectValue(projectID, userEmail, role, publicKey, pr
 		map[string]tftypes.Value{
 			"id":                       tftypes.NewValue(tftypes.String, nil),
 			"project_id":               tftypes.NewValue(tftypes.String, projectID),
-			"user_email":               tftypes.NewValue(tftypes.String, userEmail),
+			"email":                    tftypes.NewValue(tftypes.String, email),
 			"role":                     tftypes.NewValue(tftypes.String, role),
 			"user_id":                  tftypes.NewValue(tftypes.String, nil),
 			"username":                 tftypes.NewValue(tftypes.String, nil),

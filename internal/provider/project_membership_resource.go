@@ -26,7 +26,7 @@ func NewProjectMembershipResource() resource.Resource {
 type projectMembershipResourceModel struct {
 	ID                     types.String `tfsdk:"id"`
 	ProjectID              types.String `tfsdk:"project_id"`
-	UserEmail              types.String `tfsdk:"user_email"`
+	Email                  types.String `tfsdk:"email"`
 	Role                   types.String `tfsdk:"role"`
 	UserID                 types.String `tfsdk:"user_id"`
 	Username               types.String `tfsdk:"username"`
@@ -77,8 +77,8 @@ func (r *projectMembershipResource) Schema(ctx context.Context, req resource.Sch
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
-			"user_email": schema.StringAttribute{
-				Description: "The email address of the user to add to the project. User must already be an organization member.",
+			"email": schema.StringAttribute{
+				Description: "The email address of the user to add to the project.",
 				Required:    true,
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
@@ -134,7 +134,7 @@ func (r *projectMembershipResource) Create(ctx context.Context, req resource.Cre
 	)
 
 	createRequest := &langfuse.CreateProjectMembershipRequest{
-		Email: plan.UserEmail.ValueString(),
+		Email: plan.Email.ValueString(),
 		Role:  role,
 	}
 
@@ -213,7 +213,7 @@ func (r *projectMembershipResource) Update(ctx context.Context, req resource.Upd
 	)
 
 	updateRequest := &langfuse.CreateProjectMembershipRequest{
-		Email: state.UserEmail.ValueString(),
+		Email: state.Email.ValueString(),
 		Role:  role,
 	}
 
@@ -248,7 +248,7 @@ func (r *projectMembershipResource) Delete(ctx context.Context, req resource.Del
 		state.OrganizationPrivateKey.ValueString(),
 	)
 
-	err := organizationClient.DeleteProjectMembership(ctx, state.ProjectID.ValueString(), state.UserEmail.ValueString())
+	err := organizationClient.DeleteProjectMembership(ctx, state.ProjectID.ValueString(), state.Email.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error removing project member", err.Error())
 		return
@@ -282,7 +282,7 @@ func (r *projectMembershipResource) ImportState(ctx context.Context, req resourc
 	resp.Diagnostics.Append(resp.State.Set(ctx, &projectMembershipResourceModel{
 		ID:                     types.StringValue(membershipID),
 		ProjectID:              types.StringValue(projectID),
-		UserEmail:              types.StringValue(membership.Email),
+		Email:                  types.StringValue(membership.Email),
 		Role:                   types.StringValue(membership.Role),
 		UserID:                 types.StringValue(membership.UserID),
 		Username:               types.StringValue(membership.Username),
