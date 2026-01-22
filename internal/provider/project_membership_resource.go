@@ -128,6 +128,23 @@ func (r *projectMembershipResource) Create(ctx context.Context, req resource.Cre
 
 	role := plan.Role.ValueString()
 
+	// Validate role is one of the allowed values
+	validRoles := []string{"OWNER", "ADMIN", "MEMBER", "VIEWER", "NONE"}
+	isValidRole := false
+	for _, validRole := range validRoles {
+		if role == validRole {
+			isValidRole = true
+			break
+		}
+	}
+	if !isValidRole {
+		resp.Diagnostics.AddError(
+			"Invalid Role",
+			fmt.Sprintf("Role must be one of: %s. Got: %s", strings.Join(validRoles, ", "), role),
+		)
+		return
+	}
+
 	organizationClient := r.ClientFactory.NewOrganizationClient(
 		plan.OrganizationPublicKey.ValueString(),
 		plan.OrganizationPrivateKey.ValueString(),
@@ -206,6 +223,23 @@ func (r *projectMembershipResource) Update(ctx context.Context, req resource.Upd
 	}
 
 	role := plan.Role.ValueString()
+
+	// Validate role is one of the allowed values
+	validRoles := []string{"OWNER", "ADMIN", "MEMBER", "VIEWER", "NONE"}
+	isValidRole := false
+	for _, validRole := range validRoles {
+		if role == validRole {
+			isValidRole = true
+			break
+		}
+	}
+	if !isValidRole {
+		resp.Diagnostics.AddError(
+			"Invalid Role",
+			fmt.Sprintf("Role must be one of: %s. Got: %s", strings.Join(validRoles, ", "), role),
+		)
+		return
+	}
 
 	organizationClient := r.ClientFactory.NewOrganizationClient(
 		state.OrganizationPublicKey.ValueString(),

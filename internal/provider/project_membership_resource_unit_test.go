@@ -230,6 +230,104 @@ func TestProjectMembershipResourceCRUD(t *testing.T) {
 	})
 }
 
+func TestProjectMembershipResource_Create_InvalidRole(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	r := NewProjectMembershipResource().(*projectMembershipResource)
+
+	req := resource.CreateRequest{}
+	resp := &resource.CreateResponse{}
+
+	planValue := map[string]tftypes.Value{
+		"id":                       tftypes.NewValue(tftypes.String, tftypes.UnknownValue),
+		"project_id":               tftypes.NewValue(tftypes.String, "proj-123"),
+		"email":                    tftypes.NewValue(tftypes.String, "test@example.com"),
+		"role":                     tftypes.NewValue(tftypes.String, "INVALID_ROLE"),
+		"user_id":                  tftypes.NewValue(tftypes.String, tftypes.UnknownValue),
+		"username":                 tftypes.NewValue(tftypes.String, tftypes.UnknownValue),
+		"organization_public_key":  tftypes.NewValue(tftypes.String, "test-public"),
+		"organization_private_key": tftypes.NewValue(tftypes.String, "test-private"),
+	}
+
+	schemaResp := resource.SchemaResponse{}
+	r.Schema(ctx, resource.SchemaRequest{}, &schemaResp)
+
+	req.Plan = tfsdk.Plan{
+		Schema: schemaResp.Schema,
+		Raw:    tftypes.NewValue(schemaResp.Schema.Type().TerraformType(ctx), planValue),
+	}
+
+	r.Create(ctx, req, resp)
+
+	if !resp.Diagnostics.HasError() {
+		t.Fatal("expected error for invalid role, but got none")
+	}
+
+	errorSummary := resp.Diagnostics.Errors()[0].Summary()
+	if errorSummary != "Invalid Role" {
+		t.Fatalf("unexpected error summary. got %q, want %q", errorSummary, "Invalid Role")
+	}
+}
+
+func TestProjectMembershipResource_Update_InvalidRole(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	r := NewProjectMembershipResource().(*projectMembershipResource)
+
+	req := resource.UpdateRequest{}
+	resp := &resource.UpdateResponse{}
+
+	planValue := map[string]tftypes.Value{
+		"id":                       tftypes.NewValue(tftypes.String, "mem-456"),
+		"project_id":               tftypes.NewValue(tftypes.String, "proj-123"),
+		"email":                    tftypes.NewValue(tftypes.String, "test@example.com"),
+		"role":                     tftypes.NewValue(tftypes.String, "SUPER_ADMIN"),
+		"user_id":                  tftypes.NewValue(tftypes.String, "user-789"),
+		"username":                 tftypes.NewValue(tftypes.String, "testuser"),
+		"organization_public_key":  tftypes.NewValue(tftypes.String, "test-public"),
+		"organization_private_key": tftypes.NewValue(tftypes.String, "test-private"),
+	}
+
+	stateValue := map[string]tftypes.Value{
+		"id":                       tftypes.NewValue(tftypes.String, "mem-456"),
+		"project_id":               tftypes.NewValue(tftypes.String, "proj-123"),
+		"email":                    tftypes.NewValue(tftypes.String, "test@example.com"),
+		"role":                     tftypes.NewValue(tftypes.String, "MEMBER"),
+		"user_id":                  tftypes.NewValue(tftypes.String, "user-789"),
+		"username":                 tftypes.NewValue(tftypes.String, "testuser"),
+		"organization_public_key":  tftypes.NewValue(tftypes.String, "test-public"),
+		"organization_private_key": tftypes.NewValue(tftypes.String, "test-private"),
+	}
+
+	schemaResp := resource.SchemaResponse{}
+	r.Schema(ctx, resource.SchemaRequest{}, &schemaResp)
+
+	req.Plan = tfsdk.Plan{
+		Schema: schemaResp.Schema,
+		Raw:    tftypes.NewValue(schemaResp.Schema.Type().TerraformType(ctx), planValue),
+	}
+
+	req.State = tfsdk.State{
+		Schema: schemaResp.Schema,
+		Raw:    tftypes.NewValue(schemaResp.Schema.Type().TerraformType(ctx), stateValue),
+	}
+
+	r.Update(ctx, req, resp)
+
+	if !resp.Diagnostics.HasError() {
+		t.Fatal("expected error for invalid role, but got none")
+	}
+
+	errorSummary := resp.Diagnostics.Errors()[0].Summary()
+	if errorSummary != "Invalid Role" {
+		t.Fatalf("unexpected error summary. got %q, want %q", errorSummary, "Invalid Role")
+	}
+}
+
 func buildProjectMembershipObjectValue(projectID, email, role, publicKey, privateKey string) tftypes.Value {
 	return tftypes.NewValue(
 		tftypes.Object{
