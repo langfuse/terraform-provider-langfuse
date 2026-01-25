@@ -104,12 +104,12 @@ type ProjectMembership struct {
 }
 
 type CreateProjectMembershipRequest struct {
-	Email string `json:"email"`
-	Role  string `json:"role"`
+	UserID string `json:"userId"`
+	Role   string `json:"role"`
 }
 
 type DeleteProjectMembershipRequest struct {
-	Email string `json:"email"`
+	UserID string `json:"userId"`
 }
 
 type listProjectMembershipsResponse struct {
@@ -141,7 +141,7 @@ type OrganizationClient interface {
 	ListProjectMemberships(ctx context.Context, projectID string) ([]ProjectMembership, error)
 	GetProjectMembership(ctx context.Context, projectID, membershipID string) (*ProjectMembership, error)
 	CreateOrUpdateProjectMembership(ctx context.Context, projectID string, request *CreateProjectMembershipRequest) (*ProjectMembership, error)
-	DeleteProjectMembership(ctx context.Context, projectID, email string) error
+	DeleteProjectMembership(ctx context.Context, projectID, userID string) error
 }
 
 type organizationClientImpl struct {
@@ -329,7 +329,7 @@ func (c *organizationClientImpl) UpdateMembership(ctx context.Context, membershi
 	if userIDToUpdate == "" {
 		userIDToUpdate = currentMembership.UserID
 	}
-	
+
 	updateRequest := UpdateMembershipRequest{
 		UserID: userIDToUpdate,
 		Role:   request.Role,
@@ -360,7 +360,7 @@ func (c *organizationClientImpl) RemoveMember(ctx context.Context, membershipID 
 	}{
 		UserID: membershipID,
 	}
-	
+
 	resp, err := c.makeRequest(ctx, http.MethodDelete, "api/public/organizations/memberships", deleteRequest)
 	if err != nil {
 		return err
@@ -370,7 +370,7 @@ func (c *organizationClientImpl) RemoveMember(ctx context.Context, membershipID 
 	if err := decodeResponse(resp, &removeMemberResp); err != nil {
 		return err
 	}
-	
+
 	// API returns success: false but with a success message, so we check the message too
 	if !removeMemberResp.Success && !strings.Contains(strings.ToLower(removeMemberResp.Message), "deleted") && !strings.Contains(strings.ToLower(removeMemberResp.Message), "removed") {
 		return fmt.Errorf("failed to remove member with ID %s: %s", membershipID, removeMemberResp.Message)
@@ -444,9 +444,9 @@ func (c *organizationClientImpl) CreateOrUpdateProjectMembership(ctx context.Con
 	return &membership, nil
 }
 
-func (c *organizationClientImpl) DeleteProjectMembership(ctx context.Context, projectID, email string) error {
+func (c *organizationClientImpl) DeleteProjectMembership(ctx context.Context, projectID, userID string) error {
 	deleteRequest := DeleteProjectMembershipRequest{
-		Email: email,
+		UserID: userID,
 	}
 
 	resp, err := c.makeRequest(ctx, http.MethodDelete, fmt.Sprintf("api/public/projects/%s/memberships", projectID), deleteRequest)
@@ -461,7 +461,7 @@ func (c *organizationClientImpl) DeleteProjectMembership(ctx context.Context, pr
 
 	// Handle success pattern (following org membership pattern)
 	if !deleteResp.Success && !strings.Contains(strings.ToLower(deleteResp.Message), "deleted") && !strings.Contains(strings.ToLower(deleteResp.Message), "removed") {
-		return fmt.Errorf("failed to remove project member with email %s from project %s: %s", email, projectID, deleteResp.Message)
+		return fmt.Errorf("failed to remove project member with userID %s from project %s: %s", userID, projectID, deleteResp.Message)
 	}
 
 	return nil

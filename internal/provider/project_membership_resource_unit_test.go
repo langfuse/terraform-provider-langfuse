@@ -97,10 +97,21 @@ func TestProjectMembershipResourceCRUD(t *testing.T) {
 
 	var createResp resource.CreateResponse
 	t.Run("Create", func(t *testing.T) {
+		// First, ListMemberships is called to resolve email to UserID
+		clientFactory.OrganizationClient.EXPECT().
+			ListMemberships(ctx).
+			Return([]langfuse.OrganizationMembership{
+				{
+					ID:     "orgmem-123",
+					Email:  userEmail,
+					UserID: "user-789",
+				},
+			}, nil)
+
 		clientFactory.OrganizationClient.EXPECT().
 			CreateOrUpdateProjectMembership(ctx, projectID, &langfuse.CreateProjectMembershipRequest{
-				Email: userEmail,
-				Role:  "MEMBER",
+				UserID: "user-789",
+				Role:   "MEMBER",
 			}).
 			Return(&langfuse.ProjectMembership{
 				ID:       "mem-456",
@@ -148,8 +159,8 @@ func TestProjectMembershipResourceCRUD(t *testing.T) {
 	t.Run("Update", func(t *testing.T) {
 		clientFactory.OrganizationClient.EXPECT().
 			CreateOrUpdateProjectMembership(ctx, projectID, &langfuse.CreateProjectMembershipRequest{
-				Email: userEmail,
-				Role:  "ADMIN",
+				UserID: "user-789",
+				Role:   "ADMIN",
 			}).
 			Return(&langfuse.ProjectMembership{
 				ID:       "mem-456",
@@ -174,7 +185,7 @@ func TestProjectMembershipResourceCRUD(t *testing.T) {
 
 	t.Run("Delete", func(t *testing.T) {
 		clientFactory.OrganizationClient.EXPECT().
-			DeleteProjectMembership(ctx, projectID, userEmail).
+			DeleteProjectMembership(ctx, projectID, "user-789").
 			Return(nil)
 
 		var deleteResp resource.DeleteResponse

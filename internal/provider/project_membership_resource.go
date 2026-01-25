@@ -150,9 +150,32 @@ func (r *projectMembershipResource) Create(ctx context.Context, req resource.Cre
 		plan.OrganizationPrivateKey.ValueString(),
 	)
 
+	// Look up user ID from email via organization memberships
+	memberships, err := organizationClient.ListMemberships(ctx)
+	if err != nil {
+		resp.Diagnostics.AddError("Error listing organization memberships", err.Error())
+		return
+	}
+
+	var userID string
+	email := plan.Email.ValueString()
+	for _, m := range memberships {
+		if m.Email == email {
+			userID = m.UserID
+			break
+		}
+	}
+	if userID == "" {
+		resp.Diagnostics.AddError(
+			"User not found",
+			fmt.Sprintf("No organization member found with email: %s", email),
+		)
+		return
+	}
+
 	createRequest := &langfuse.CreateProjectMembershipRequest{
-		Email: plan.Email.ValueString(),
-		Role:  role,
+		UserID: userID,
+		Role:   role,
 	}
 
 	membership, err := organizationClient.CreateOrUpdateProjectMembership(ctx, plan.ProjectID.ValueString(), createRequest)
@@ -247,8 +270,8 @@ func (r *projectMembershipResource) Update(ctx context.Context, req resource.Upd
 	)
 
 	updateRequest := &langfuse.CreateProjectMembershipRequest{
-		Email: state.Email.ValueString(),
-		Role:  role,
+		UserID: state.UserID.ValueString(),
+		Role:   role,
 	}
 
 	membership, err := organizationClient.CreateOrUpdateProjectMembership(ctx, state.ProjectID.ValueString(), updateRequest)
@@ -282,7 +305,7 @@ func (r *projectMembershipResource) Delete(ctx context.Context, req resource.Del
 		state.OrganizationPrivateKey.ValueString(),
 	)
 
-	err := organizationClient.DeleteProjectMembership(ctx, state.ProjectID.ValueString(), state.Email.ValueString())
+	err := organizationClient.DeleteProjectMembership(ctx, state.ProjectID.ValueString(), state.UserID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error removing project member", err.Error())
 		return
