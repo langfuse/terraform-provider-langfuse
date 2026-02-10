@@ -254,6 +254,8 @@ func TestOrganizationMembershipResourceImport(t *testing.T) {
 
 	t.Run("Invalid import format - missing parts", func(t *testing.T) {
 		// Only membership ID, missing public and private keys
+		// This now triggers the new "Missing Organization Credentials for Import" error
+		// since format "mem-123" is valid but requires provider credentials
 		importID := "mem-123"
 
 		var importResp resource.ImportStateResponse
@@ -262,18 +264,18 @@ func TestOrganizationMembershipResourceImport(t *testing.T) {
 		r.ImportState(ctx, resource.ImportStateRequest{ID: importID}, &importResp)
 
 		if !importResp.Diagnostics.HasError() {
-			t.Fatal("expected diagnostics error for invalid import format")
+			t.Fatal("expected diagnostics error for missing provider credentials")
 		}
 
 		errorFound := false
 		for _, diag := range importResp.Diagnostics {
-			if diag.Summary() == "Invalid import format" {
+			if diag.Summary() == "Missing Organization Credentials for Import" {
 				errorFound = true
 				break
 			}
 		}
 		if !errorFound {
-			t.Error("expected 'Invalid import format' error message")
+			t.Error("expected 'Missing Organization Credentials for Import' error message")
 		}
 	})
 

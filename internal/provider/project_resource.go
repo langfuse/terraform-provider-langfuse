@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
@@ -43,6 +44,41 @@ func (r *projectResource) Configure(ctx context.Context, req resource.ConfigureR
 	r.ClientFactory = req.ProviderData.(langfuse.ClientFactory)
 }
 
+// resolveOrgCredentials returns the org credentials to use, implementing the fallback pattern:
+// 1. Use resource-level credentials if provided
+// 2. Fall back to provider-level credentials if available
+// 3. Error if neither is available
+func (r *projectResource) resolveOrgCredentials(
+	ctx context.Context,
+	resourcePublicKey, resourcePrivateKey types.String,
+) (publicKey string, privateKey string, err error) {
+
+	// Check if resource has explicit credentials
+	hasResourceCreds := !resourcePublicKey.IsNull() &&
+		!resourcePublicKey.IsUnknown() &&
+		resourcePublicKey.ValueString() != "" &&
+		!resourcePrivateKey.IsNull() &&
+		!resourcePrivateKey.IsUnknown() &&
+		resourcePrivateKey.ValueString() != ""
+
+	if hasResourceCreds {
+		return resourcePublicKey.ValueString(), resourcePrivateKey.ValueString(), nil
+	}
+
+	// Fall back to provider-level credentials
+	if r.ClientFactory.HasDefaultOrgCredentials() {
+		return r.ClientFactory.GetDefaultOrgPublicKey(),
+			r.ClientFactory.GetDefaultOrgPrivateKey(),
+			nil
+	}
+
+	// Neither available - return error
+	return "", "", fmt.Errorf(
+		"organization credentials required: provide org_public_key and org_private_key " +
+			"either at resource level or configure at provider level",
+	)
+}
+
 func (r *projectResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_project"
 }
@@ -74,17 +110,17 @@ func (r *projectResource) Schema(ctx context.Context, req resource.SchemaRequest
 				},
 			},
 			"organization_public_key": schema.StringAttribute{
-				Required:    true,
+				Optional:    true,
 				Sensitive:   true,
-				Description: "Organization public key to authenticate the call.",
+				Description: "Organization public key to authenticate the call. If not provided, uses provider-level org_public_key.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"organization_private_key": schema.StringAttribute{
-				Required:    true,
+				Optional:    true,
 				Sensitive:   true,
-				Description: "Organization private key to authenticate the call.",
+				Description: "Organization private key to authenticate the call. If not provided, uses provider-level org_private_key.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
@@ -101,6 +137,13 @@ func (r *projectResource) Create(ctx context.Context, req resource.CreateRequest
 		return
 	}
 
+	// Resolve credentials with fallback
+	publicKey, privateKey, err := r.resolveOrgCredentials(ctx, data.OrganizationPublicKey, data.OrganizationPrivateKey)
+	if err != nil {
+		resp.Diagnostics.AddError("Missing Organization Credentials", err.Error())
+		return
+	}
+
 	metadata := make(map[string]string)
 	if !data.Metadata.IsNull() && !data.Metadata.IsUnknown() {
 		resp.Diagnostics.Append(data.Metadata.ElementsAs(ctx, &metadata, false)...)
@@ -109,7 +152,7 @@ func (r *projectResource) Create(ctx context.Context, req resource.CreateRequest
 		}
 	}
 
-	organizationClient := r.ClientFactory.NewOrganizationClient(data.OrganizationPublicKey.ValueString(), data.OrganizationPrivateKey.ValueString())
+	organizationClient := r.ClientFactory.NewOrganizationClient(publicKey, privateKey)
 	project, err := organizationClient.CreateProject(ctx, &langfuse.CreateProjectRequest{
 		Name:          data.Name.ValueString(),
 		RetentionDays: data.RetentionDays.ValueInt32(),
@@ -138,8 +181,8 @@ func (r *projectResource) Create(ctx context.Context, req resource.CreateRequest
 		RetentionDays:          types.Int32Value(project.RetentionDays),
 		Metadata:               metadataMap,
 		OrganizationID:         types.StringValue(data.OrganizationID.ValueString()),
-		OrganizationPublicKey:  types.StringValue(data.OrganizationPublicKey.ValueString()),
-		OrganizationPrivateKey: types.StringValue(data.OrganizationPrivateKey.ValueString()),
+		OrganizationPublicKey:  types.StringValue(publicKey),
+		OrganizationPrivateKey: types.StringValue(privateKey),
 	})...)
 }
 
@@ -151,7 +194,14 @@ func (r *projectResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	organizationClient := r.ClientFactory.NewOrganizationClient(data.OrganizationPublicKey.ValueString(), data.OrganizationPrivateKey.ValueString())
+	// Resolve credentials with fallback
+	publicKey, privateKey, err := r.resolveOrgCredentials(ctx, data.OrganizationPublicKey, data.OrganizationPrivateKey)
+	if err != nil {
+		resp.Diagnostics.AddError("Missing Organization Credentials", err.Error())
+		return
+	}
+
+	organizationClient := r.ClientFactory.NewOrganizationClient(publicKey, privateKey)
 	project, err := organizationClient.GetProject(ctx, data.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading project", err.Error())
@@ -177,8 +227,8 @@ func (r *projectResource) Read(ctx context.Context, req resource.ReadRequest, re
 		RetentionDays:          data.RetentionDays,
 		Metadata:               metadataMap,
 		OrganizationID:         types.StringValue(data.OrganizationID.ValueString()),
-		OrganizationPublicKey:  types.StringValue(data.OrganizationPublicKey.ValueString()),
-		OrganizationPrivateKey: types.StringValue(data.OrganizationPrivateKey.ValueString()),
+		OrganizationPublicKey:  types.StringValue(publicKey),
+		OrganizationPrivateKey: types.StringValue(privateKey),
 	})...)
 }
 
@@ -197,6 +247,13 @@ func (r *projectResource) Update(ctx context.Context, req resource.UpdateRequest
 		return
 	}
 
+	// Resolve credentials with fallback
+	publicKey, privateKey, err := r.resolveOrgCredentials(ctx, data.OrganizationPublicKey, data.OrganizationPrivateKey)
+	if err != nil {
+		resp.Diagnostics.AddError("Missing Organization Credentials", err.Error())
+		return
+	}
+
 	projectID := currentState.ID.ValueString()
 
 	metadata := make(map[string]string)
@@ -207,7 +264,7 @@ func (r *projectResource) Update(ctx context.Context, req resource.UpdateRequest
 		}
 	}
 
-	organizationClient := r.ClientFactory.NewOrganizationClient(data.OrganizationPublicKey.ValueString(), data.OrganizationPrivateKey.ValueString())
+	organizationClient := r.ClientFactory.NewOrganizationClient(publicKey, privateKey)
 
 	request := &langfuse.UpdateProjectRequest{
 		Name:          data.Name.ValueString(),
@@ -239,8 +296,8 @@ func (r *projectResource) Update(ctx context.Context, req resource.UpdateRequest
 		RetentionDays:          data.RetentionDays, // Use from config, not API response
 		Metadata:               metadataMap,
 		OrganizationID:         types.StringValue(data.OrganizationID.ValueString()),
-		OrganizationPublicKey:  types.StringValue(data.OrganizationPublicKey.ValueString()),
-		OrganizationPrivateKey: types.StringValue(data.OrganizationPrivateKey.ValueString()),
+		OrganizationPublicKey:  types.StringValue(publicKey),
+		OrganizationPrivateKey: types.StringValue(privateKey),
 	})...)
 }
 
@@ -252,8 +309,15 @@ func (r *projectResource) Delete(ctx context.Context, req resource.DeleteRequest
 		return
 	}
 
-	organizationClient := r.ClientFactory.NewOrganizationClient(data.OrganizationPublicKey.ValueString(), data.OrganizationPrivateKey.ValueString())
-	err := organizationClient.DeleteProject(ctx, data.ID.ValueString())
+	// Resolve credentials with fallback
+	publicKey, privateKey, err := r.resolveOrgCredentials(ctx, data.OrganizationPublicKey, data.OrganizationPrivateKey)
+	if err != nil {
+		resp.Diagnostics.AddError("Missing Organization Credentials", err.Error())
+		return
+	}
+
+	organizationClient := r.ClientFactory.NewOrganizationClient(publicKey, privateKey)
+	err = organizationClient.DeleteProject(ctx, data.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error deleting project", err.Error())
 		return
@@ -271,20 +335,44 @@ func (r *projectResource) Delete(ctx context.Context, req resource.DeleteRequest
 }
 
 func (r *projectResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	// Import format: project_id,organization_id,organization_public_key,organization_private_key
-	// Example: terraform import langfuse_project.example "proj_123,org_456,pk_789,sk_012"
-
 	importParts := strings.Split(req.ID, ",")
-	if len(importParts) != 4 {
+
+	var projectID, organizationID, organizationPublicKey, organizationPrivateKey string
+
+	switch len(importParts) {
+	case 2:
+		// New format: "project_id,organization_id" - use provider credentials
+		projectID = importParts[0]
+		organizationID = importParts[1]
+
+		if !r.ClientFactory.HasDefaultOrgCredentials() {
+			resp.Diagnostics.AddError(
+				"Missing Organization Credentials for Import",
+				"Import format 'project_id,organization_id' requires provider-level org credentials. "+
+					"Either:\n"+
+					"1. Configure provider with org_public_key and org_private_key, or\n"+
+					"2. Use import format: project_id,organization_id,org_public_key,org_private_key",
+			)
+			return
+		}
+
+		organizationPublicKey = r.ClientFactory.GetDefaultOrgPublicKey()
+		organizationPrivateKey = r.ClientFactory.GetDefaultOrgPrivateKey()
+
+	case 4:
+		// Legacy format: "project_id,organization_id,public_key,private_key"
+		projectID = importParts[0]
+		organizationID = importParts[1]
+		organizationPublicKey = importParts[2]
+		organizationPrivateKey = importParts[3]
+
+	default:
 		resp.Diagnostics.AddError("Invalid import format",
-			"Import ID must be in format: project_id,organization_id,organization_public_key,organization_private_key")
+			"Import ID must be in one of these formats:\n"+
+				"1. project_id,organization_id (requires provider-level credentials)\n"+
+				"2. project_id,organization_id,organization_public_key,organization_private_key")
 		return
 	}
-
-	projectID := importParts[0]
-	organizationID := importParts[1]
-	organizationPublicKey := importParts[2]
-	organizationPrivateKey := importParts[3]
 
 	// Get the project details using the provided organization credentials
 	organizationClient := r.ClientFactory.NewOrganizationClient(organizationPublicKey, organizationPrivateKey)
