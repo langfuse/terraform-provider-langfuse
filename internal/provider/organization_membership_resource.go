@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -53,6 +52,41 @@ func (r *organizationMembershipResource) Configure(ctx context.Context, req reso
 	r.ClientFactory = clientFactory
 }
 
+// resolveOrgCredentials returns the org credentials to use, implementing the fallback pattern:
+// 1. Use resource-level credentials if provided
+// 2. Fall back to provider-level credentials if available
+// 3. Error if neither is available
+func (r *organizationMembershipResource) resolveOrgCredentials(
+	ctx context.Context,
+	resourcePublicKey, resourcePrivateKey types.String,
+) (publicKey string, privateKey string, err error) {
+
+	// Check if resource has explicit credentials
+	hasResourceCreds := !resourcePublicKey.IsNull() &&
+		!resourcePublicKey.IsUnknown() &&
+		resourcePublicKey.ValueString() != "" &&
+		!resourcePrivateKey.IsNull() &&
+		!resourcePrivateKey.IsUnknown() &&
+		resourcePrivateKey.ValueString() != ""
+
+	if hasResourceCreds {
+		return resourcePublicKey.ValueString(), resourcePrivateKey.ValueString(), nil
+	}
+
+	// Fall back to provider-level credentials
+	if r.ClientFactory.HasDefaultOrgCredentials() {
+		return r.ClientFactory.GetDefaultOrgPublicKey(),
+			r.ClientFactory.GetDefaultOrgPrivateKey(),
+			nil
+	}
+
+	// Neither available - return error
+	return "", "", fmt.Errorf(
+		"organization credentials required: provide org_public_key and org_private_key " +
+			"either at resource level or configure at provider level",
+	)
+}
+
 func (r *organizationMembershipResource) Metadata(ctx context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
 	resp.TypeName = req.ProviderTypeName + "_organization_membership"
 }
@@ -92,17 +126,17 @@ func (r *organizationMembershipResource) Schema(ctx context.Context, req resourc
 				Computed:    true,
 			},
 			"organization_public_key": schema.StringAttribute{
-				Required:    true,
+				Optional:    true,
 				Sensitive:   true,
-				Description: "Organization public key to authenticate the call.",
+				Description: "Organization public key to authenticate the call. If not provided, uses provider-level org_public_key.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"organization_private_key": schema.StringAttribute{
-				Required:    true,
+				Optional:    true,
 				Sensitive:   true,
-				Description: "Organization private key to authenticate the call.",
+				Description: "Organization private key to authenticate the call. If not provided, uses provider-level org_private_key.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -115,6 +149,13 @@ func (r *organizationMembershipResource) Create(ctx context.Context, req resourc
 	var plan organizationMembershipResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	// Resolve credentials with fallback
+	publicKey, privateKey, err := r.resolveOrgCredentials(ctx, plan.OrganizationPublicKey, plan.OrganizationPrivateKey)
+	if err != nil {
+		resp.Diagnostics.AddError("Missing Organization Credentials", err.Error())
 		return
 	}
 
@@ -136,7 +177,7 @@ func (r *organizationMembershipResource) Create(ctx context.Context, req resourc
 		return
 	}
 
-	organizationClient := r.ClientFactory.NewOrganizationClient(plan.OrganizationPublicKey.ValueString(), plan.OrganizationPrivateKey.ValueString())
+	organizationClient := r.ClientFactory.NewOrganizationClient(publicKey, privateKey)
 
 	email := plan.Email.ValueString()
 
@@ -227,6 +268,8 @@ func (r *organizationMembershipResource) Create(ctx context.Context, req resourc
 		plan.Status = types.StringValue(membership.Status)
 		plan.UserID = types.StringValue(membership.UserID)
 		plan.Username = types.StringValue(membership.Username)
+		plan.OrganizationPublicKey = types.StringValue(publicKey)
+		plan.OrganizationPrivateKey = types.StringValue(privateKey)
 	} else {
 		// User already exists in organization, update their role
 		updateRequest := &langfuse.UpdateMembershipRequest{
@@ -252,6 +295,8 @@ func (r *organizationMembershipResource) Create(ctx context.Context, req resourc
 		plan.Status = types.StringValue(membership.Status)
 		plan.UserID = types.StringValue(membership.UserID)
 		plan.Username = types.StringValue(membership.Username)
+		plan.OrganizationPublicKey = types.StringValue(publicKey)
+		plan.OrganizationPrivateKey = types.StringValue(privateKey)
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
@@ -264,7 +309,14 @@ func (r *organizationMembershipResource) Read(ctx context.Context, req resource.
 		return
 	}
 
-	organizationClient := r.ClientFactory.NewOrganizationClient(state.OrganizationPublicKey.ValueString(), state.OrganizationPrivateKey.ValueString())
+	// Resolve credentials with fallback
+	publicKey, privateKey, err := r.resolveOrgCredentials(ctx, state.OrganizationPublicKey, state.OrganizationPrivateKey)
+	if err != nil {
+		resp.Diagnostics.AddError("Missing Organization Credentials", err.Error())
+		return
+	}
+
+	organizationClient := r.ClientFactory.NewOrganizationClient(publicKey, privateKey)
 
 	membership, err := organizationClient.GetMembership(ctx, state.ID.ValueString())
 	if err != nil {
@@ -305,6 +357,13 @@ func (r *organizationMembershipResource) Update(ctx context.Context, req resourc
 		return
 	}
 
+	// Resolve credentials with fallback
+	publicKey, privateKey, err := r.resolveOrgCredentials(ctx, state.OrganizationPublicKey, state.OrganizationPrivateKey)
+	if err != nil {
+		resp.Diagnostics.AddError("Missing Organization Credentials", err.Error())
+		return
+	}
+
 	// Validate role is one of the allowed values
 	validRoles := []string{"OWNER", "ADMIN", "MEMBER", "VIEWER","NONE"}
 	role := plan.Role.ValueString()
@@ -323,7 +382,7 @@ func (r *organizationMembershipResource) Update(ctx context.Context, req resourc
 		return
 	}
 
-	organizationClient := r.ClientFactory.NewOrganizationClient(state.OrganizationPublicKey.ValueString(), state.OrganizationPrivateKey.ValueString())
+	organizationClient := r.ClientFactory.NewOrganizationClient(publicKey, privateKey)
 
 	updateRequest := &langfuse.UpdateMembershipRequest{
 		Role: role,
@@ -347,6 +406,8 @@ func (r *organizationMembershipResource) Update(ctx context.Context, req resourc
 	plan.Status = types.StringValue(membership.Status)
 	plan.UserID = types.StringValue(membership.UserID)
 	plan.Username = types.StringValue(membership.Username)
+	plan.OrganizationPublicKey = types.StringValue(publicKey)
+	plan.OrganizationPrivateKey = types.StringValue(privateKey)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
 }
@@ -358,9 +419,16 @@ func (r *organizationMembershipResource) Delete(ctx context.Context, req resourc
 		return
 	}
 
-	organizationClient := r.ClientFactory.NewOrganizationClient(state.OrganizationPublicKey.ValueString(), state.OrganizationPrivateKey.ValueString())
+	// Resolve credentials with fallback
+	publicKey, privateKey, err := r.resolveOrgCredentials(ctx, state.OrganizationPublicKey, state.OrganizationPrivateKey)
+	if err != nil {
+		resp.Diagnostics.AddError("Missing Organization Credentials", err.Error())
+		return
+	}
 
-	err := organizationClient.RemoveMember(ctx, state.UserID.ValueString())
+	organizationClient := r.ClientFactory.NewOrganizationClient(publicKey, privateKey)
+
+	err = organizationClient.RemoveMember(ctx, state.UserID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error removing member", err.Error())
 		return
@@ -368,5 +436,64 @@ func (r *organizationMembershipResource) Delete(ctx context.Context, req resourc
 }
 
 func (r *organizationMembershipResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)
+	importParts := strings.Split(req.ID, ",")
+
+	var membershipID, orgPublicKey, orgPrivateKey string
+
+	switch len(importParts) {
+	case 1:
+		// New format: "membership_id" - use provider credentials
+		membershipID = importParts[0]
+
+		if !r.ClientFactory.HasDefaultOrgCredentials() {
+			resp.Diagnostics.AddError(
+				"Missing Organization Credentials for Import",
+				"Import format 'resource_id' requires provider-level org credentials. "+
+					"Either:\n"+
+					"1. Configure provider with org_public_key and org_private_key, or\n"+
+					"2. Use import format: resource_id,org_public_key,org_private_key",
+			)
+			return
+		}
+
+		orgPublicKey = r.ClientFactory.GetDefaultOrgPublicKey()
+		orgPrivateKey = r.ClientFactory.GetDefaultOrgPrivateKey()
+
+	case 3:
+		// Legacy format: "membership_id,public_key,private_key"
+		membershipID = importParts[0]
+		orgPublicKey = importParts[1]
+		orgPrivateKey = importParts[2]
+
+	default:
+		resp.Diagnostics.AddError(
+			"Invalid import format",
+			"Import ID must be in one of these formats:\n"+
+				"1. membership_id (requires provider-level credentials)\n"+
+				"2. membership_id,organization_public_key,organization_private_key",
+		)
+		return
+	}
+
+	// Validate we can fetch the membership with the provided credentials
+	organizationClient := r.ClientFactory.NewOrganizationClient(orgPublicKey, orgPrivateKey)
+
+	membership, err := organizationClient.GetMembership(ctx, membershipID)
+	if err != nil {
+		resp.Diagnostics.AddError("Error importing membership",
+			fmt.Sprintf("Could not read membership %s: %s", membershipID, err.Error()))
+		return
+	}
+
+	// Set the imported state with all required information
+	resp.Diagnostics.Append(resp.State.Set(ctx, &organizationMembershipResourceModel{
+		ID:                     types.StringValue(membershipID),
+		Email:                  types.StringValue(membership.Email),
+		Role:                   types.StringValue(membership.Role),
+		Status:                 types.StringValue(membership.Status),
+		UserID:                 types.StringValue(membership.UserID),
+		Username:               types.StringValue(membership.Username),
+		OrganizationPublicKey:  types.StringValue(orgPublicKey),
+		OrganizationPrivateKey: types.StringValue(orgPrivateKey),
+	})...)
 }

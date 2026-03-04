@@ -19,8 +19,10 @@ type langfuseProvider struct {
 }
 
 type langfuseProviderModel struct {
-	Host        types.String `tfsdk:"host"`
-	AdminAPIKey types.String `tfsdk:"admin_api_key"`
+	Host           types.String `tfsdk:"host"`
+	AdminAPIKey    types.String `tfsdk:"admin_api_key"`
+	OrgPublicKey   types.String `tfsdk:"org_public_key"`
+	OrgPrivateKey  types.String `tfsdk:"org_private_key"`
 }
 
 func (p *langfuseProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -39,6 +41,16 @@ func (p *langfuseProvider) Schema(ctx context.Context, req provider.SchemaReques
 				Optional:    true,
 				Sensitive:   true,
 				Description: "Admin API key. Only needed when managing organizations. Can also come from LANGFUSE_ADMIN_KEY.",
+			},
+			"org_public_key": schema.StringAttribute{
+				Optional:    true,
+				Sensitive:   true,
+				Description: "Organization public key. Used as default for resources that require org-level auth. Can also come from LANGFUSE_ORG_PUBLIC_KEY.",
+			},
+			"org_private_key": schema.StringAttribute{
+				Optional:    true,
+				Sensitive:   true,
+				Description: "Organization private key. Used as default for resources that require org-level auth. Can also come from LANGFUSE_ORG_PRIVATE_KEY.",
 			},
 		},
 	}
@@ -62,7 +74,19 @@ func (p *langfuseProvider) Configure(ctx context.Context, req provider.Configure
 		apiKey = config.AdminAPIKey.ValueString()
 	}
 
-	clientFactory := langfuse.NewClientFactory(host, apiKey)
+	// Org public key
+	orgPublicKey := os.Getenv("LANGFUSE_ORG_PUBLIC_KEY")
+	if !config.OrgPublicKey.IsNull() && !config.OrgPublicKey.IsUnknown() && config.OrgPublicKey.ValueString() != "" {
+		orgPublicKey = config.OrgPublicKey.ValueString()
+	}
+
+	// Org private key
+	orgPrivateKey := os.Getenv("LANGFUSE_ORG_PRIVATE_KEY")
+	if !config.OrgPrivateKey.IsNull() && !config.OrgPrivateKey.IsUnknown() && config.OrgPrivateKey.ValueString() != "" {
+		orgPrivateKey = config.OrgPrivateKey.ValueString()
+	}
+
+	clientFactory := langfuse.NewClientFactory(host, apiKey, orgPublicKey, orgPrivateKey)
 	resp.DataSourceData = clientFactory
 	resp.ResourceData = clientFactory
 }
