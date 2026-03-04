@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -14,6 +15,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	resschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
 )
@@ -59,6 +61,12 @@ func TestProjectResourceSchema(t *testing.T) {
 	}
 	if !idAttr.Computed {
 		t.Fatalf("'id' attribute must be Computed=true")
+	}
+	if len(idAttr.PlanModifiers) != 1 {
+		t.Fatalf("'id' attribute must have exactly one plan modifier, got %d", len(idAttr.PlanModifiers))
+	}
+	if reflect.TypeOf(idAttr.PlanModifiers[0]) != reflect.TypeOf(stringplanmodifier.UseStateForUnknown()) {
+		t.Fatalf("'id' attribute must use UseStateForUnknown plan modifier")
 	}
 
 	nameAttrRaw, ok := schemaResp.Schema.Attributes["name"]
