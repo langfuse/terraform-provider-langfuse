@@ -114,11 +114,6 @@ type listProjectMembershipsResponse struct {
 	Memberships []ProjectMembership `json:"memberships"`
 }
 
-type deleteProjectMembershipResponse struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
-}
-
 //go:generate mockgen -destination=./mocks/mock_organization_client.go -package=mocks github.com/langfuse/terraform-provider-langfuse/internal/langfuse OrganizationClient
 
 type OrganizationClient interface {
@@ -450,15 +445,11 @@ func (c *organizationClientImpl) DeleteProjectMembership(ctx context.Context, pr
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 
-	var deleteResp deleteProjectMembershipResponse
-	if err := decodeResponse(resp, &deleteResp); err != nil {
-		return err
-	}
-
-	// Handle success pattern (following org membership pattern)
-	if !deleteResp.Success && !strings.Contains(strings.ToLower(deleteResp.Message), "deleted") && !strings.Contains(strings.ToLower(deleteResp.Message), "removed") {
-		return fmt.Errorf("failed to remove project member with userID %s from project %s: %s", userID, projectID, deleteResp.Message)
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("failed to remove project member %s from project %s (status %d)",
+			userID, projectID, resp.StatusCode)
 	}
 
 	return nil
