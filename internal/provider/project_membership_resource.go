@@ -29,7 +29,7 @@ type projectMembershipResourceModel struct {
 	Email                  types.String `tfsdk:"email"`
 	Role                   types.String `tfsdk:"role"`
 	UserID                 types.String `tfsdk:"user_id"`
-	Username               types.String `tfsdk:"username"`
+	Name                   types.String `tfsdk:"name"`
 	OrganizationPublicKey  types.String `tfsdk:"organization_public_key"`
 	OrganizationPrivateKey types.String `tfsdk:"organization_private_key"`
 }
@@ -95,8 +95,8 @@ func (r *projectMembershipResource) Schema(ctx context.Context, req resource.Sch
 				Description: "The unique identifier of the user.",
 				Computed:    true,
 			},
-			"username": schema.StringAttribute{
-				Description: "The username of the user.",
+			"name": schema.StringAttribute{
+				Description: "The name of the user.",
 				Computed:    true,
 			},
 			"organization_public_key": schema.StringAttribute{
@@ -120,17 +120,17 @@ func (r *projectMembershipResource) Schema(ctx context.Context, req resource.Sch
 }
 
 func (r *projectMembershipResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
-	var plan projectMembershipResourceModel
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	var data projectMembershipResourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
 
-	role := plan.Role.ValueString()
+	role := data.Role.ValueString()
 
 	organizationClient := r.ClientFactory.NewOrganizationClient(
-		plan.OrganizationPublicKey.ValueString(),
-		plan.OrganizationPrivateKey.ValueString(),
+		data.OrganizationPublicKey.ValueString(),
+		data.OrganizationPrivateKey.ValueString(),
 	)
 
 	// Look up user ID from email via organization memberships
@@ -141,7 +141,7 @@ func (r *projectMembershipResource) Create(ctx context.Context, req resource.Cre
 	}
 
 	var userID string
-	email := plan.Email.ValueString()
+	email := data.Email.ValueString()
 	for _, m := range memberships {
 		if m.Email == email {
 			userID = m.UserID
@@ -161,24 +161,22 @@ func (r *projectMembershipResource) Create(ctx context.Context, req resource.Cre
 		Role:   role,
 	}
 
-	membership, err := organizationClient.CreateOrUpdateProjectMembership(ctx, plan.ProjectID.ValueString(), createRequest)
+	membership, err := organizationClient.CreateOrUpdateProjectMembership(ctx, data.ProjectID.ValueString(), createRequest)
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating project membership", err.Error())
 		return
 	}
 
-	// Use UserID as ID if membership.ID is empty (following org membership pattern)
-	membershipID := membership.ID
-	if membershipID == "" {
-		membershipID = membership.UserID
-	}
-
-	plan.ID = types.StringValue(membershipID)
-	plan.UserID = types.StringValue(membership.UserID)
-	plan.Username = types.StringValue(membership.Username)
-	plan.Role = types.StringValue(membership.Role)
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &projectMembershipResourceModel{
+		ID:                     types.StringValue(membership.UserID),
+		ProjectID:              data.ProjectID,
+		Email:                  data.Email,
+		Role:                   types.StringValue(membership.Role),
+		UserID:                 types.StringValue(membership.UserID),
+		Name:                   types.StringValue(membership.Name),
+		OrganizationPublicKey:  data.OrganizationPublicKey,
+		OrganizationPrivateKey: data.OrganizationPrivateKey,
+	})...)
 }
 
 func (r *projectMembershipResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -206,18 +204,14 @@ func (r *projectMembershipResource) Read(ctx context.Context, req resource.ReadR
 	// Update state with current values
 	state.Role = types.StringValue(membership.Role)
 	state.UserID = types.StringValue(membership.UserID)
-	state.Username = types.StringValue(membership.Username)
-
-	if membership.ID != "" {
-		state.ID = types.StringValue(membership.ID)
-	}
+	state.Name = types.StringValue(membership.Name)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
 }
 
 func (r *projectMembershipResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	var plan projectMembershipResourceModel
-	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	var data projectMembershipResourceModel
+	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
 	if resp.Diagnostics.HasError() {
 		return
 	}
@@ -228,7 +222,7 @@ func (r *projectMembershipResource) Update(ctx context.Context, req resource.Upd
 		return
 	}
 
-	role := plan.Role.ValueString()
+	role := data.Role.ValueString()
 
 	organizationClient := r.ClientFactory.NewOrganizationClient(
 		state.OrganizationPublicKey.ValueString(),
@@ -246,17 +240,16 @@ func (r *projectMembershipResource) Update(ctx context.Context, req resource.Upd
 		return
 	}
 
-	membershipID := membership.ID
-	if membershipID == "" {
-		membershipID = membership.UserID
-	}
-
-	plan.ID = types.StringValue(membershipID)
-	plan.UserID = types.StringValue(membership.UserID)
-	plan.Username = types.StringValue(membership.Username)
-	plan.Role = types.StringValue(membership.Role)
-
-	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
+	resp.Diagnostics.Append(resp.State.Set(ctx, &projectMembershipResourceModel{
+		ID:                     types.StringValue(membership.UserID),
+		ProjectID:              state.ProjectID,
+		Email:                  data.Email,
+		Role:                   types.StringValue(membership.Role),
+		UserID:                 types.StringValue(membership.UserID),
+		Name:                   types.StringValue(membership.Name),
+		OrganizationPublicKey:  state.OrganizationPublicKey,
+		OrganizationPrivateKey: state.OrganizationPrivateKey,
+	})...)
 }
 
 func (r *projectMembershipResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
@@ -285,33 +278,33 @@ func (r *projectMembershipResource) ImportState(ctx context.Context, req resourc
 	importParts := strings.Split(req.ID, ",")
 	if len(importParts) != 4 {
 		resp.Diagnostics.AddError("Invalid import format",
-			"Import ID must be in format: project_id,membership_id,organization_public_key,organization_private_key")
+			"Import ID must be in format: project_id,user_id,organization_public_key,organization_private_key")
 		return
 	}
 
 	projectID := importParts[0]
-	membershipID := importParts[1]
+	userID := importParts[1]
 	organizationPublicKey := importParts[2]
 	organizationPrivateKey := importParts[3]
 
 	organizationClient := r.ClientFactory.NewOrganizationClient(organizationPublicKey, organizationPrivateKey)
-	membership, err := organizationClient.GetProjectMembership(ctx, projectID, membershipID)
+	membership, err := organizationClient.GetProjectMembership(ctx, projectID, userID)
 	if err != nil {
 		resp.Diagnostics.AddError("Error importing project membership",
-			"Could not read project membership "+membershipID+" in project "+projectID+": "+err.Error())
+			"Could not read project membership for user "+userID+" in project "+projectID+": "+err.Error())
 		return
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &projectMembershipResourceModel{
-		ID:                     types.StringValue(membershipID),
+		ID:                     types.StringValue(membership.UserID),
 		ProjectID:              types.StringValue(projectID),
 		Email:                  types.StringValue(membership.Email),
 		Role:                   types.StringValue(membership.Role),
 		UserID:                 types.StringValue(membership.UserID),
-		Username:               types.StringValue(membership.Username),
+		Name:                   types.StringValue(membership.Name),
 		OrganizationPublicKey:  types.StringValue(organizationPublicKey),
 		OrganizationPrivateKey: types.StringValue(organizationPrivateKey),
 	})...)
 
-	resource.ImportStatePassthroughID(ctx, path.Root("id"), resource.ImportStateRequest{ID: membershipID}, resp)
+	resource.ImportStatePassthroughID(ctx, path.Root("id"), resource.ImportStateRequest{ID: membership.UserID}, resp)
 }

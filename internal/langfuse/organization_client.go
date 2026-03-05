@@ -95,12 +95,10 @@ type removeMemberResponse struct {
 
 // Project Membership types
 type ProjectMembership struct {
-	ID        string `json:"id"`
-	UserID    string `json:"userId"`
-	ProjectID string `json:"projectId"`
-	Role      string `json:"role"`
-	Email     string `json:"email"`
-	Username  string `json:"username"`
+	UserID string `json:"userId"`
+	Role   string `json:"role"`
+	Email  string `json:"email"`
+	Name   string `json:"name"`
 }
 
 type CreateProjectMembershipRequest struct {
@@ -421,13 +419,12 @@ func (c *organizationClientImpl) GetProjectMembership(ctx context.Context, proje
 	}
 
 	for _, membership := range memberships {
-		// Check both ID and UserID as the API may not return consistent IDs
-		if membership.ID == membershipID || membership.UserID == membershipID {
+		if membership.UserID == membershipID {
 			return &membership, nil
 		}
 	}
 
-	return nil, fmt.Errorf("cannot find project membership with ID %s in project %s", membershipID, projectID)
+	return nil, fmt.Errorf("cannot find project membership for user %s in project %s", membershipID, projectID)
 }
 
 func (c *organizationClientImpl) CreateOrUpdateProjectMembership(ctx context.Context, projectID string, request *CreateProjectMembershipRequest) (*ProjectMembership, error) {
