@@ -1,5 +1,11 @@
 .PHONY: test testacc test-setup test-teardown
 
+build:
+	go build -v ./...
+
+install: build
+	go install -v ./...
+
 # Run unit tests (fast, no external dependencies)
 test:
 	go test ./... -v -run "^Test[^A].*"

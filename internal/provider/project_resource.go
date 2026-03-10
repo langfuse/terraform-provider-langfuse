@@ -62,6 +62,7 @@ func (r *projectResource) Schema(ctx context.Context, req resource.SchemaRequest
 			},
 			"retention_days": schema.Int32Attribute{
 				Optional:    true,
+                Computed: true,
 				Description: "The retention period for the project in days. If not set, or set with a value of 0, data will be stored indefinitely.",
 			},
 			"metadata": schema.MapAttribute{
