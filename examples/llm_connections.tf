@@ -50,3 +50,23 @@ resource "langfuse_llm_connection" "vertex_ai_prod" {
   config              = jsonencode({ location = "us-central1" })
   with_default_models = true
 }
+
+# Create an LLM connection (Anthropic)
+resource "langfuse_llm_connection" "anthropic_prod" {
+  project_public_key  = "your-project-public-key"
+  project_secret_key  = "your-project-secret-key"
+  provider            = "anthropic-prod"
+  adapter             = "anthropic"
+  secret_key          = "anthropic-key"
+  with_default_models = true
+}
+
+# Create an LLM connection (Azure)
+resource "langfuse_llm_connection" "azure_prod" {
+  project_public_key  = "your-project-public-key"
+  project_secret_key  = "your-project-secret-key"
+  provider            = "azure-prod"
+  adapter             = "azure"
+  secret_key          = "azure-key"
+  with_default_models = true
+}
