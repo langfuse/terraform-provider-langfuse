@@ -9,6 +9,7 @@ Langfuse is an open-source LLM engineering platform that provides observability,
 - 🏢 **Organization Management** - Create and manage Langfuse organizations
 - 🔑 **API Key Management** - Generate and manage organization and project API keys
 - 📦 **Project Management** - Create and configure projects within organizations
+- 🤖 **LLM Connections Management** - Configure and manage LLM API connections (OpenAI, Bedrock, Vertex AI, etc.)
 - 🛡️ **Enterprise Support** - Full support for Langfuse Enterprise features
 - ⚡ **Terraform Integration** - Native integration with Terraform workflows
 
@@ -96,6 +97,16 @@ variable "admin_api_key" {
 provider "langfuse" {
   host          = var.host
   admin_api_key = var.admin_api_key
+}
+
+# Create an LLM connection
+resource "langfuse_llm_connection" "openai_prod" {
+  project_public_key  = "your-project-public-key"
+  project_secret_key  = "your-project-secret-key"
+  provider            = "openai-prod"
+  adapter             = "openai"
+  secret_key          = "sk-..."
+  with_default_models = true
 }
 
 # Create an organization
