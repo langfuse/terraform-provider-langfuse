@@ -3,12 +3,12 @@ package provider
 import (
 	"context"
 
-	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
 )
 
 var _ resource.Resource = &organizationApiKeyResource{}
