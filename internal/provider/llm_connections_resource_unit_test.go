@@ -7,8 +7,8 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	resschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
@@ -25,7 +25,7 @@ func buildLlmConnectionObjectValue(values map[string]tftypes.Value) tftypes.Valu
 				"id":                  tftypes.String,
 				"project_public_key":  tftypes.String,
 				"project_secret_key":  tftypes.String,
-				"provider":            tftypes.String,
+				"connection_name":     tftypes.String,
 				"adapter":             tftypes.String,
 				"secret_key":          tftypes.String,
 				"base_url":            tftypes.String,
@@ -56,7 +56,7 @@ func buildLlmConnectionStateValue(id, projectPublicKey, projectSecretKey, provid
 		"id":                  tftypes.NewValue(tftypes.String, id),
 		"project_public_key":  tftypes.NewValue(tftypes.String, projectPublicKey),
 		"project_secret_key":  tftypes.NewValue(tftypes.String, projectSecretKey),
-		"provider":            tftypes.NewValue(tftypes.String, provider),
+		"connection_name":     tftypes.NewValue(tftypes.String, provider),
 		"adapter":             tftypes.NewValue(tftypes.String, adapter),
 		"secret_key":          tftypes.NewValue(tftypes.String, secretKey),
 		"base_url":            tftypes.NewValue(tftypes.String, nil),
@@ -120,7 +120,7 @@ func TestLlmConnectionsResource_Create(t *testing.T) {
 			"id":                  tftypes.NewValue(tftypes.String, nil),
 			"project_public_key":  tftypes.NewValue(tftypes.String, "pk-test"),
 			"project_secret_key":  tftypes.NewValue(tftypes.String, "sk-test"),
-			"provider":            tftypes.NewValue(tftypes.String, "openai-prod"),
+			"connection_name":     tftypes.NewValue(tftypes.String, "openai-prod"),
 			"adapter":             tftypes.NewValue(tftypes.String, "openai"),
 			"secret_key":          tftypes.NewValue(tftypes.String, "my-api-key"),
 			"base_url":            tftypes.NewValue(tftypes.String, nil),
@@ -147,8 +147,8 @@ func TestLlmConnectionsResource_Create(t *testing.T) {
 		t.Fatalf("unexpected diagnostics getting model from state: %v", diags)
 	}
 
-	if model.Provider.ValueString() != "openai-prod" {
-		t.Errorf("expected provider %q, got %q", "openai-prod", model.Provider.ValueString())
+	if model.ConnectionName.ValueString() != "openai-prod" {
+		t.Errorf("expected connection_name %q, got %q", "openai-prod", model.ConnectionName.ValueString())
 	}
 	if model.Adapter.ValueString() != "openai" {
 		t.Errorf("expected adapter %q, got %q", "openai", model.Adapter.ValueString())
@@ -319,7 +319,7 @@ func TestLlmConnectionsResource_ConfigValidator(t *testing.T) {
 				"id":                  tftypes.NewValue(tftypes.String, nil),
 				"project_public_key":  tftypes.NewValue(tftypes.String, "pk-test"),
 				"project_secret_key":  tftypes.NewValue(tftypes.String, "sk-test"),
-				"provider":            tftypes.NewValue(tftypes.String, "test-provider"),
+				"connection_name":     tftypes.NewValue(tftypes.String, "test-provider"),
 				"adapter":             tftypes.NewValue(tftypes.String, tt.adapter),
 				"secret_key":          tftypes.NewValue(tftypes.String, "my-api-key"),
 				"base_url":            tftypes.NewValue(tftypes.String, nil),
@@ -460,7 +460,7 @@ func TestLlmConnectionsResource_Update(t *testing.T) {
 			"id":                  tftypes.NewValue(tftypes.String, "openai-prod"),
 			"project_public_key":  tftypes.NewValue(tftypes.String, "pk-test"),
 			"project_secret_key":  tftypes.NewValue(tftypes.String, "sk-test"),
-			"provider":            tftypes.NewValue(tftypes.String, "openai-prod"),
+			"connection_name":     tftypes.NewValue(tftypes.String, "openai-prod"),
 			"adapter":             tftypes.NewValue(tftypes.String, "openai"),
 			"secret_key":          tftypes.NewValue(tftypes.String, "updated-api-key"),
 			"base_url":            tftypes.NewValue(tftypes.String, nil),
@@ -492,8 +492,8 @@ func TestLlmConnectionsResource_Update(t *testing.T) {
 		t.Fatalf("unexpected diagnostics getting model from state: %v", diags)
 	}
 
-	if model.Provider.ValueString() != "openai-prod" {
-		t.Errorf("expected provider %q, got %q", "openai-prod", model.Provider.ValueString())
+	if model.ConnectionName.ValueString() != "openai-prod" {
+		t.Errorf("expected connection_name %q, got %q", "openai-prod", model.ConnectionName.ValueString())
 	}
 	// secret_key must be taken from plan, not API response
 	if model.SecretKey.ValueString() != "updated-api-key" {
@@ -545,7 +545,7 @@ func TestLlmConnectionsResource_Create_WithOptionalFields(t *testing.T) {
 			"id":                  tftypes.NewValue(tftypes.String, nil),
 			"project_public_key":  tftypes.NewValue(tftypes.String, "pk-test"),
 			"project_secret_key":  tftypes.NewValue(tftypes.String, "sk-test"),
-			"provider":            tftypes.NewValue(tftypes.String, "bedrock-prod"),
+			"connection_name":     tftypes.NewValue(tftypes.String, "bedrock-prod"),
 			"adapter":             tftypes.NewValue(tftypes.String, "bedrock"),
 			"secret_key":          tftypes.NewValue(tftypes.String, "my-aws-key"),
 			"base_url":            tftypes.NewValue(tftypes.String, "https://custom.bedrock.example.com"),
@@ -607,7 +607,7 @@ func TestLlmConnectionsResource_Create_Error(t *testing.T) {
 			"id":                  tftypes.NewValue(tftypes.String, nil),
 			"project_public_key":  tftypes.NewValue(tftypes.String, "pk-test"),
 			"project_secret_key":  tftypes.NewValue(tftypes.String, "sk-test"),
-			"provider":            tftypes.NewValue(tftypes.String, "openai-prod"),
+			"connection_name":     tftypes.NewValue(tftypes.String, "openai-prod"),
 			"adapter":             tftypes.NewValue(tftypes.String, "openai"),
 			"secret_key":          tftypes.NewValue(tftypes.String, "my-api-key"),
 			"base_url":            tftypes.NewValue(tftypes.String, nil),
@@ -680,7 +680,7 @@ func TestLlmConnectionsResource_Update_Error(t *testing.T) {
 			"id":                  tftypes.NewValue(tftypes.String, "openai-prod"),
 			"project_public_key":  tftypes.NewValue(tftypes.String, "pk-test"),
 			"project_secret_key":  tftypes.NewValue(tftypes.String, "sk-test"),
-			"provider":            tftypes.NewValue(tftypes.String, "openai-prod"),
+			"connection_name":     tftypes.NewValue(tftypes.String, "openai-prod"),
 			"adapter":             tftypes.NewValue(tftypes.String, "openai"),
 			"secret_key":          tftypes.NewValue(tftypes.String, "updated-api-key"),
 			"base_url":            tftypes.NewValue(tftypes.String, nil),
@@ -768,13 +768,13 @@ func TestLlmConnectionsResource_Read_Pagination(t *testing.T) {
 	if diags.HasError() {
 		t.Fatalf("unexpected diagnostics getting model from state: %v", diags)
 	}
-	if model.Provider.ValueString() != "openai-prod" {
-		t.Errorf("expected provider %q, got %q", "openai-prod", model.Provider.ValueString())
+	if model.ConnectionName.ValueString() != "openai-prod" {
+		t.Errorf("expected connection_name %q, got %q", "openai-prod", model.ConnectionName.ValueString())
 	}
 }
 
 // TestLlmConnectionsResource_ProviderFieldRequiresReplace verifies that the schema
-// declares RequiresReplace on the provider attribute, ensuring Terraform will
+// declares RequiresReplace on the connection_name attribute, ensuring Terraform will
 // destroy-and-recreate rather than in-place update when the provider name changes.
 func TestLlmConnectionsResource_ProviderFieldRequiresReplace(t *testing.T) {
 	t.Parallel()
@@ -785,14 +785,14 @@ func TestLlmConnectionsResource_ProviderFieldRequiresReplace(t *testing.T) {
 	var schemaResp resource.SchemaResponse
 	r.Schema(ctx, resource.SchemaRequest{}, &schemaResp)
 
-	providerAttr, ok := schemaResp.Schema.Attributes["provider"]
+	providerAttr, ok := schemaResp.Schema.Attributes["connection_name"]
 	if !ok {
-		t.Fatal("expected schema to have a \"provider\" attribute")
+		t.Fatal("expected schema to have a \"connection_name\" attribute")
 	}
 
 	strAttr, ok := providerAttr.(resschema.StringAttribute)
 	if !ok {
-		t.Fatalf("expected \"provider\" to be a StringAttribute, got %T", providerAttr)
+		t.Fatalf("expected \"connection_name\" to be a StringAttribute, got %T", providerAttr)
 	}
 
 	wantDescription := "RequiresReplace"
@@ -809,6 +809,6 @@ func TestLlmConnectionsResource_ProviderFieldRequiresReplace(t *testing.T) {
 	}
 	_ = wantDescription
 	if !found {
-		t.Error("expected \"provider\" attribute to have RequiresReplace plan modifier, but it was not found")
+		t.Error("expected \"connection_name\" attribute to have RequiresReplace plan modifier, but it was not found")
 	}
 }

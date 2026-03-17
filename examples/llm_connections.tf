@@ -21,7 +21,7 @@ provider "langfuse" {
 resource "langfuse_llm_connection" "openai_prod" {
   project_public_key  = "your-project-public-key"
   project_secret_key  = "your-project-secret-key"
-  provider            = "openai-prod"
+  connection_name     = "openai-prod"
   adapter             = "openai"
   secret_key          = "sk-..."
   with_default_models = true
@@ -31,7 +31,7 @@ resource "langfuse_llm_connection" "openai_prod" {
 resource "langfuse_llm_connection" "bedrock_prod" {
   project_public_key  = "your-project-public-key"
   project_secret_key  = "your-project-secret-key"
-  provider            = "bedrock-prod"
+  connection_name     = "bedrock-prod"
   adapter             = "bedrock"
   secret_key          = "AK..."
   base_url            = "https://bedrock.aws.example.com"
@@ -44,7 +44,7 @@ resource "langfuse_llm_connection" "bedrock_prod" {
 resource "langfuse_llm_connection" "vertex_ai_prod" {
   project_public_key  = "your-project-public-key"
   project_secret_key  = "your-project-secret-key"
-  provider            = "vertex-ai-prod"
+  connection_name     = "vertex-ai-prod"
   adapter             = "google-vertex-ai"
   secret_key          = "vertex-key"
   config              = jsonencode({ location = "us-central1" })
@@ -55,7 +55,7 @@ resource "langfuse_llm_connection" "vertex_ai_prod" {
 resource "langfuse_llm_connection" "anthropic_prod" {
   project_public_key  = "your-project-public-key"
   project_secret_key  = "your-project-secret-key"
-  provider            = "anthropic-prod"
+  connection_name     = "anthropic-prod"
   adapter             = "anthropic"
   secret_key          = "anthropic-key"
   with_default_models = true
@@ -65,7 +65,7 @@ resource "langfuse_llm_connection" "anthropic_prod" {
 resource "langfuse_llm_connection" "azure_prod" {
   project_public_key  = "your-project-public-key"
   project_secret_key  = "your-project-secret-key"
-  provider            = "azure-prod"
+  connection_name     = "azure-prod"
   adapter             = "azure"
   secret_key          = "azure-key"
   with_default_models = true

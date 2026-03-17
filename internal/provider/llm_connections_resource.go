@@ -33,7 +33,7 @@ type llmConnectionsResourceModel struct {
 	ID                types.String `tfsdk:"id"`
 	ProjectPublicKey  types.String `tfsdk:"project_public_key"`
 	ProjectSecretKey  types.String `tfsdk:"project_secret_key"`
-	Provider          types.String `tfsdk:"provider"`
+	ConnectionName    types.String `tfsdk:"connection_name"`
 	Adapter           types.String `tfsdk:"adapter"`
 	SecretKey         types.String `tfsdk:"secret_key"`
 	BaseURL           types.String `tfsdk:"base_url"`
@@ -89,9 +89,9 @@ func (r *llmConnectionsResource) Schema(ctx context.Context, req resource.Schema
 				Sensitive:   true,
 				Description: "The project secret key used to authenticate API calls.",
 			},
-			"provider": schema.StringAttribute{
+			"connection_name": schema.StringAttribute{
 				Required:    true,
-				Description: "The unique name identifying this LLM connection within the project. Changing this value destroys and recreates the resource, as the provider name is the upsert key.",
+				Description: "The unique name identifying this LLM connection within the project. Changing this value destroys and recreates the resource, as the connection_name is the upsert key.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
@@ -223,7 +223,7 @@ func (r *llmConnectionsResource) ConfigValidators(ctx context.Context) []resourc
 func mapResponseToState(conn *langfuse.LlmConnection, secretKey types.String, extraHeaders types.Map, projectPublicKey, projectSecretKey types.String) (llmConnectionsResourceModel, error) {
 	state := llmConnectionsResourceModel{
 		ID:                types.StringValue(conn.Provider),
-		Provider:          types.StringValue(conn.Provider),
+		ConnectionName:    types.StringValue(conn.Provider),
 		Adapter:           types.StringValue(conn.Adapter),
 		WithDefaultModels: types.BoolValue(conn.WithDefaultModels),
 		SecretKey:         secretKey,
@@ -265,7 +265,7 @@ func mapResponseToState(conn *langfuse.LlmConnection, secretKey types.String, ex
 func buildUpsertRequest(plan llmConnectionsResourceModel) (*langfuse.UpsertLlmConnectionRequest, error) {
 	upsertReq := langfuse.UpsertLlmConnectionRequest{
 		Adapter:   plan.Adapter.ValueString(),
-		Provider:  plan.Provider.ValueString(),
+		Provider:  plan.ConnectionName.ValueString(),
 		SecretKey: plan.SecretKey.ValueString(),
 	}
 
@@ -358,7 +358,7 @@ func (r *llmConnectionsResource) Read(ctx context.Context, req resource.ReadRequ
 			return
 		}
 		for i := range listResp.Data {
-			if listResp.Data[i].Provider == state.Provider.ValueString() {
+			if listResp.Data[i].Provider == state.ConnectionName.ValueString() {
 				found = &listResp.Data[i]
 				break
 			}

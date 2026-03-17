@@ -57,7 +57,7 @@ Manages LLM API connections for a Langfuse project. Supports OpenAI, Bedrock, Az
 
 - `id` (String) - The unique identifier of the LLM connection (set to the provider value)
 - `adapter` (String) - The LLM adapter type
-- `provider` (String) - The provider name
+- `connection_name` (String) - The provider name (e.g., 'openai', 'my-gateway'). Must be unique in project, used for upserting.
 - `base_url` (String) - The base URL used
 - `custom_models` (List of String) - Custom model names
 - `with_default_models` (Bool) - Whether default models are included
@@ -83,7 +83,7 @@ Manages LLM API connections for a Langfuse project. Supports OpenAI, Bedrock, Az
 resource "langfuse_llm_connection" "openai_prod" {
   project_public_key  = "your-project-public-key"
   project_secret_key  = "your-project-secret-key"
-  provider            = "openai-prod"
+  connection_name     = "openai-prod"
   adapter             = "openai"
   secret_key          = "sk-..."
   with_default_models = true
@@ -93,7 +93,7 @@ resource "langfuse_llm_connection" "openai_prod" {
 resource "langfuse_llm_connection" "bedrock_prod" {
   project_public_key  = "your-project-public-key"
   project_secret_key  = "your-project-secret-key"
-  provider            = "bedrock-prod"
+  connection_name     = "bedrock-prod"
   adapter             = "bedrock"
   secret_key          = "AK..."
   base_url            = "https://bedrock.aws.example.com"
@@ -106,7 +106,7 @@ resource "langfuse_llm_connection" "bedrock_prod" {
 resource "langfuse_llm_connection" "vertex_ai_prod" {
   project_public_key  = "your-project-public-key"
   project_secret_key  = "your-project-secret-key"
-  provider            = "vertex-ai-prod"
+  connection_name     = "vertex-ai-prod"
   adapter             = "google-vertex-ai"
   secret_key          = "vertex-key"
   config              = jsonencode({ location = "us-central1" })
@@ -117,7 +117,7 @@ resource "langfuse_llm_connection" "vertex_ai_prod" {
 resource "langfuse_llm_connection" "azure_prod" {
   project_public_key  = "your-project-public-key"
   project_secret_key  = "your-project-secret-key"
-  provider            = "azure-prod"
+  connection_name     = "azure-prod"
   adapter             = "azure"
   secret_key          = "azure-key"
   with_default_models = true
@@ -127,7 +127,7 @@ resource "langfuse_llm_connection" "azure_prod" {
 resource "langfuse_llm_connection" "my_gateway" {
   project_public_key  = "your-project-public-key"
   project_secret_key  = "your-project-secret-key"
-  provider            = "my-gateway"
+  connection_name     = "my-gateway"
   adapter             = "openai"
   secret_key          = "sk-custom"
   extra_headers       = {
