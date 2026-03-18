@@ -153,6 +153,21 @@ func (mr *MockOrganizationClientMockRecorder) GetProjectApiKey(arg0, arg1, arg2 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProjectApiKey", reflect.TypeOf((*MockOrganizationClient)(nil).GetProjectApiKey), arg0, arg1, arg2)
 }
 
+// ListLlmConnections mocks base method.
+func (m *MockOrganizationClient) ListLlmConnections(arg0 context.Context, arg1, arg2 int) (*langfuse.PaginatedLlmConnections, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListLlmConnections", arg0, arg1, arg2)
+	ret0, _ := ret[0].(*langfuse.PaginatedLlmConnections)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListLlmConnections indicates an expected call of ListLlmConnections.
+func (mr *MockOrganizationClientMockRecorder) ListLlmConnections(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListLlmConnections", reflect.TypeOf((*MockOrganizationClient)(nil).ListLlmConnections), arg0, arg1, arg2)
+}
+
 // ListMemberships mocks base method.
 func (m *MockOrganizationClient) ListMemberships(arg0 context.Context) ([]langfuse.OrganizationMembership, error) {
 	m.ctrl.T.Helper()
@@ -225,4 +240,19 @@ func (m *MockOrganizationClient) UpdateProject(arg0 context.Context, arg1 string
 func (mr *MockOrganizationClientMockRecorder) UpdateProject(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateProject", reflect.TypeOf((*MockOrganizationClient)(nil).UpdateProject), arg0, arg1, arg2)
+}
+
+// UpsertLlmConnection mocks base method.
+func (m *MockOrganizationClient) UpsertLlmConnection(arg0 context.Context, arg1 *langfuse.UpsertLlmConnectionRequest) (*langfuse.LlmConnection, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpsertLlmConnection", arg0, arg1)
+	ret0, _ := ret[0].(*langfuse.LlmConnection)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpsertLlmConnection indicates an expected call of UpsertLlmConnection.
+func (mr *MockOrganizationClientMockRecorder) UpsertLlmConnection(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertLlmConnection", reflect.TypeOf((*MockOrganizationClient)(nil).UpsertLlmConnection), arg0, arg1)
 }

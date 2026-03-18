@@ -35,11 +35,22 @@ func decodeResponse(resp *http.Response, target any) error {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("request failed with status code %d, response body: %s", resp.StatusCode, string(body))
 	}
+
+	// Some endpoints (e.g. DELETE) may return an empty body.
+	if target == nil {
+		_, _ = io.Copy(io.Discard, resp.Body)
+		return nil
+	}
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("failed to read response body: %w", err)
 	}
-	if err = json.Unmarshal(body, &target); err != nil {
+	if len(bytes.TrimSpace(body)) == 0 {
+		return nil
+	}
+
+	if err = json.Unmarshal(body, target); err != nil {
 		return fmt.Errorf("failed to unmarshal response body: %w", err)
 	}
 

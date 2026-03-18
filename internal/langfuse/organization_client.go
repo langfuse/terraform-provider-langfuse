@@ -20,6 +20,43 @@ type ProjectApiKey struct {
 	SecretKey string `json:"secretKey"`
 }
 
+type MetaResponse struct {
+	Page       int `json:"page"`
+	Limit      int `json:"limit"`
+	TotalItems int `json:"totalItems"`
+	TotalPages int `json:"totalPages"`
+}
+
+type LlmConnection struct {
+	ID                string         `json:"id"`
+	Provider          string         `json:"provider"`
+	Adapter           string         `json:"adapter"`
+	DisplaySecretKey  string         `json:"displaySecretKey"`
+	BaseURL           *string        `json:"baseURL"`
+	CustomModels      []string       `json:"customModels"`
+	WithDefaultModels bool           `json:"withDefaultModels"`
+	ExtraHeaderKeys   []string       `json:"extraHeaderKeys"`
+	Config            map[string]any `json:"config"`
+	CreatedAt         string         `json:"createdAt"`
+	UpdatedAt         string         `json:"updatedAt"`
+}
+
+type PaginatedLlmConnections struct {
+	Data []LlmConnection `json:"data"`
+	Meta MetaResponse    `json:"meta"`
+}
+
+type UpsertLlmConnectionRequest struct {
+	Provider          string            `json:"provider"`
+	Adapter           string            `json:"adapter"`
+	SecretKey         string            `json:"secretKey"`
+	BaseURL           *string           `json:"baseURL,omitempty"`
+	CustomModels      []string          `json:"customModels,omitempty"`
+	WithDefaultModels *bool             `json:"withDefaultModels,omitempty"`
+	ExtraHeaders      map[string]string `json:"extraHeaders,omitempty"`
+	Config            map[string]any    `json:"config,omitempty"`
+}
+
 type CreateProjectRequest struct {
 	Name          string            `json:"name"`
 	RetentionDays int32             `json:"retention"`
@@ -104,6 +141,8 @@ type OrganizationClient interface {
 	GetProjectApiKey(ctx context.Context, projectID string, apiKeyID string) (*ProjectApiKey, error)
 	CreateProjectApiKey(ctx context.Context, projectID string) (*ProjectApiKey, error)
 	DeleteProjectApiKey(ctx context.Context, projectID string, apiKeyID string) error
+	ListLlmConnections(ctx context.Context, page, limit int) (*PaginatedLlmConnections, error)
+	UpsertLlmConnection(ctx context.Context, request *UpsertLlmConnectionRequest) (*LlmConnection, error)
 	ListMemberships(ctx context.Context) ([]OrganizationMembership, error)
 	GetMembership(ctx context.Context, membershipID string) (*OrganizationMembership, error)
 	UpdateMembership(ctx context.Context, membershipID string, request *UpdateMembershipRequest) (*OrganizationMembership, error)
@@ -254,6 +293,46 @@ func (c *organizationClientImpl) DeleteProjectApiKey(ctx context.Context, projec
 	return nil
 }
 
+func (c *organizationClientImpl) ListLlmConnections(ctx context.Context, page, limit int) (*PaginatedLlmConnections, error) {
+	path := "api/public/llm-connections"
+	params := make([]string, 0, 2)
+	if page > 0 {
+		params = append(params, fmt.Sprintf("page=%d", page))
+	}
+	if limit > 0 {
+		params = append(params, fmt.Sprintf("limit=%d", limit))
+	}
+	if len(params) > 0 {
+		path += "?" + strings.Join(params, "&")
+	}
+
+	resp, err := c.makeRequest(ctx, http.MethodGet, path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var out PaginatedLlmConnections
+	if err := decodeResponse(resp, &out); err != nil {
+		return nil, err
+	}
+
+	return &out, nil
+}
+
+func (c *organizationClientImpl) UpsertLlmConnection(ctx context.Context, request *UpsertLlmConnectionRequest) (*LlmConnection, error) {
+	resp, err := c.makeRequest(ctx, http.MethodPut, "api/public/llm-connections", request)
+	if err != nil {
+		return nil, err
+	}
+
+	var conn LlmConnection
+	if err := decodeResponse(resp, &conn); err != nil {
+		return nil, err
+	}
+
+	return &conn, nil
+}
+
 func (c *organizationClientImpl) ListMemberships(ctx context.Context) ([]OrganizationMembership, error) {
 	resp, err := c.makeRequest(ctx, http.MethodGet, "api/public/organizations/memberships", nil)
 	if err != nil {
@@ -296,7 +375,7 @@ func (c *organizationClientImpl) UpdateMembership(ctx context.Context, membershi
 	if userIDToUpdate == "" {
 		userIDToUpdate = currentMembership.UserID
 	}
-	
+
 	updateRequest := UpdateMembershipRequest{
 		UserID: userIDToUpdate,
 		Role:   request.Role,
@@ -327,7 +406,7 @@ func (c *organizationClientImpl) RemoveMember(ctx context.Context, membershipID 
 	}{
 		UserID: membershipID,
 	}
-	
+
 	resp, err := c.makeRequest(ctx, http.MethodDelete, "api/public/organizations/memberships", deleteRequest)
 	if err != nil {
 		return err
@@ -337,7 +416,7 @@ func (c *organizationClientImpl) RemoveMember(ctx context.Context, membershipID 
 	if err := decodeResponse(resp, &removeMemberResp); err != nil {
 		return err
 	}
-	
+
 	// API returns success: false but with a success message, so we check the message too
 	if !removeMemberResp.Success && !strings.Contains(strings.ToLower(removeMemberResp.Message), "deleted") && !strings.Contains(strings.ToLower(removeMemberResp.Message), "removed") {
 		return fmt.Errorf("failed to remove member with ID %s: %s", membershipID, removeMemberResp.Message)
