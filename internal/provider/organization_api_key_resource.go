@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"strings"
 
 	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
@@ -109,7 +110,11 @@ func (r *organizationApiKeyResource) Read(ctx context.Context, req resource.Read
 
 	_, err := r.AdminClient.GetOrganizationApiKey(ctx, data.OrganizationID.ValueString(), data.ID.ValueString())
 	if err != nil {
-		resp.State.RemoveResource(ctx)
+		if strings.Contains(err.Error(), "cannot find API key") {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError("Error reading organization API key", err.Error())
 		return
 	}
 

@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -128,6 +129,91 @@ func TestOrganizationApiKeyResourceCRUD(t *testing.T) {
 			t.Fatalf("unexpected diagnostics from Delete: %v", deleteResp.Diagnostics)
 		}
 	})
+}
+
+func TestOrganizationApiKeyResource_Read_NotFound(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ctx := context.Background()
+
+	clientFactory := mocks.NewMockClientFactory(ctrl)
+	r := &organizationApiKeyResource{}
+	var configureResp resource.ConfigureResponse
+	r.Configure(ctx, resource.ConfigureRequest{ProviderData: clientFactory}, &configureResp)
+
+	var schemaResp resource.SchemaResponse
+	r.Schema(ctx, resource.SchemaRequest{}, &schemaResp)
+
+	state := tfsdk.State{
+		Schema: schemaResp.Schema,
+		Raw: buildOrgApiKeyObjectValue(map[string]tftypes.Value{
+			"id":              tftypes.NewValue(tftypes.String, "oak-123"),
+			"organization_id": tftypes.NewValue(tftypes.String, "org-123"),
+			"public_key":      tftypes.NewValue(tftypes.String, "pk-1234"),
+			"secret_key":      tftypes.NewValue(tftypes.String, "sk-1234"),
+		}),
+	}
+
+	clientFactory.AdminClient.EXPECT().
+		GetOrganizationApiKey(ctx, "org-123", "oak-123").
+		Return(nil, fmt.Errorf("cannot find API key with ID oak-123 in organization org-123"))
+
+	var resp resource.ReadResponse
+	resp.State.Schema = schemaResp.Schema
+	r.Read(ctx, resource.ReadRequest{State: state}, &resp)
+
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("expected no diagnostics, got: %v", resp.Diagnostics)
+	}
+	if !resp.State.Raw.IsNull() {
+		t.Fatal("expected state to be removed (null) when key is not found")
+	}
+}
+
+func TestOrganizationApiKeyResource_Read_Error(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ctx := context.Background()
+
+	clientFactory := mocks.NewMockClientFactory(ctrl)
+	r := &organizationApiKeyResource{}
+	var configureResp resource.ConfigureResponse
+	r.Configure(ctx, resource.ConfigureRequest{ProviderData: clientFactory}, &configureResp)
+
+	var schemaResp resource.SchemaResponse
+	r.Schema(ctx, resource.SchemaRequest{}, &schemaResp)
+
+	state := tfsdk.State{
+		Schema: schemaResp.Schema,
+		Raw: buildOrgApiKeyObjectValue(map[string]tftypes.Value{
+			"id":              tftypes.NewValue(tftypes.String, "oak-123"),
+			"organization_id": tftypes.NewValue(tftypes.String, "org-123"),
+			"public_key":      tftypes.NewValue(tftypes.String, "pk-1234"),
+			"secret_key":      tftypes.NewValue(tftypes.String, "sk-1234"),
+		}),
+	}
+
+	clientFactory.AdminClient.EXPECT().
+		GetOrganizationApiKey(ctx, "org-123", "oak-123").
+		Return(nil, fmt.Errorf("internal server error"))
+
+	var resp resource.ReadResponse
+	resp.State.Schema = schemaResp.Schema
+	r.Read(ctx, resource.ReadRequest{State: state}, &resp)
+
+	if !resp.Diagnostics.HasError() {
+		t.Fatal("expected error diagnostic for non-404 error, got none")
+	}
+	errs := resp.Diagnostics.Errors()
+	if errs[0].Summary() != "Error reading organization API key" {
+		t.Fatalf("unexpected error summary: %q", errs[0].Summary())
+	}
 }
 
 func buildOrgApiKeyObjectValue(values map[string]tftypes.Value) tftypes.Value {
