@@ -80,6 +80,21 @@ func TestProjectResourceSchema(t *testing.T) {
 	if !nameAttr.Required {
 		t.Fatalf("'name' attribute must be Required=true")
 	}
+
+	orgIDAttrRaw, ok := schemaResp.Schema.Attributes["organization_id"]
+	if !ok {
+		t.Fatalf("schema is missing mandatory 'organization_id' attribute")
+	}
+	orgIDAttr, ok := orgIDAttrRaw.(resschema.StringAttribute)
+	if !ok {
+		t.Fatalf("'organization_id' attribute is not a string attribute as expected")
+	}
+	if len(orgIDAttr.PlanModifiers) != 1 {
+		t.Fatalf("'organization_id' must have exactly one plan modifier, got %d", len(orgIDAttr.PlanModifiers))
+	}
+	if reflect.TypeOf(orgIDAttr.PlanModifiers[0]) != reflect.TypeOf(stringplanmodifier.RequiresReplace()) {
+		t.Fatalf("'organization_id' plan modifier must be RequiresReplace")
+	}
 }
 
 func TestProjectResourceCRUD(t *testing.T) {
