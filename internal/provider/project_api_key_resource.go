@@ -3,12 +3,12 @@ package provider
 import (
 	"context"
 
-	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
 )
 
 var _ resource.Resource = &projectApiKeyResource{}
@@ -22,6 +22,7 @@ type projectApiKeyResourceModel struct {
 	OrganizationPublicKey  types.String `tfsdk:"organization_public_key"`
 	OrganizationPrivateKey types.String `tfsdk:"organization_private_key"`
 	ProjectID              types.String `tfsdk:"project_id"`
+	Note                   types.String `tfsdk:"note"`
 	PublicKey              types.String `tfsdk:"public_key"`
 	SecretKey              types.String `tfsdk:"secret_key"`
 }
@@ -70,6 +71,14 @@ func (r *projectApiKeyResource) Schema(ctx context.Context, req resource.SchemaR
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
+			"note": schema.StringAttribute{
+				Optional: true,
+				Description: "Optional note for the API key (POST /api/public/projects/{projectId}/apiKeys). " +
+					"Because the Langfuse public API only accepts a note at creation time, changing this attribute forces replacement: the old key is deleted and a new one is created (new id and credentials).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
+			},
 			"public_key": schema.StringAttribute{
 				Computed:    true,
 				Sensitive:   true,
@@ -101,7 +110,8 @@ func (r *projectApiKeyResource) Create(ctx context.Context, req resource.CreateR
 	}
 
 	organizationClient := r.ClientFactory.NewOrganizationClient(data.OrganizationPublicKey.ValueString(), data.OrganizationPrivateKey.ValueString())
-	projectApiKey, err := organizationClient.CreateProjectApiKey(ctx, data.ProjectID.ValueString())
+	createReq := planNoteToCreateRequest(data.Note)
+	projectApiKey, err := organizationClient.CreateProjectApiKey(ctx, data.ProjectID.ValueString(), createReq)
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating project API key", err.Error())
 		return
@@ -112,6 +122,7 @@ func (r *projectApiKeyResource) Create(ctx context.Context, req resource.CreateR
 		OrganizationPublicKey:  types.StringValue(data.OrganizationPublicKey.ValueString()),
 		OrganizationPrivateKey: types.StringValue(data.OrganizationPrivateKey.ValueString()),
 		ProjectID:              types.StringValue(data.ProjectID.ValueString()),
+		Note:                   projectApiKeyNoteToTF(projectApiKey.Note),
 		PublicKey:              types.StringValue(projectApiKey.PublicKey),
 		SecretKey:              types.StringValue(projectApiKey.SecretKey),
 	})...)
@@ -125,11 +136,13 @@ func (r *projectApiKeyResource) Read(ctx context.Context, req resource.ReadReque
 	}
 
 	organizationClient := r.ClientFactory.NewOrganizationClient(data.OrganizationPublicKey.ValueString(), data.OrganizationPrivateKey.ValueString())
-	_, err := organizationClient.GetProjectApiKey(ctx, data.ProjectID.ValueString(), data.ID.ValueString())
+	key, err := organizationClient.GetProjectApiKey(ctx, data.ProjectID.ValueString(), data.ID.ValueString())
 	if err != nil {
 		resp.State.RemoveResource(ctx)
 		return
 	}
+
+	data.Note = projectApiKeyNoteToTF(key.Note)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -154,4 +167,19 @@ func (r *projectApiKeyResource) Delete(ctx context.Context, req resource.DeleteR
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &projectApiKeyResourceModel{})...)
+}
+
+func projectApiKeyNoteToTF(note *string) types.String {
+	if note == nil {
+		return types.StringNull()
+	}
+	return types.StringValue(*note)
+}
+
+func planNoteToCreateRequest(note types.String) *langfuse.CreateProjectApiKeyRequest {
+	if note.IsUnknown() || note.IsNull() {
+		return nil
+	}
+	s := note.ValueString()
+	return &langfuse.CreateProjectApiKeyRequest{Note: &s}
 }
