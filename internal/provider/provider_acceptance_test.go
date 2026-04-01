@@ -9,6 +9,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
 )
 
@@ -90,11 +91,18 @@ func TestAccLangfuseWorkflow(t *testing.T) {
 					resource.TestCheckResourceAttrSet("langfuse_project_api_key.test", "public_key"),
 					resource.TestCheckResourceAttrSet("langfuse_project_api_key.test", "secret_key"),
 					resource.TestCheckResourceAttrSet("langfuse_project_api_key.test", "project_id"),
+					resource.TestCheckResourceAttr("langfuse_project_api_key.test", "note", "acceptance-workflow"),
 				),
 			},
 			// Step 5: Update resources with metadata changes (test updates work correctly)
 			{
 				Config: testAccLangfuseWorkflowConfig_Step5(orgName, projectName+"updated"),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						// Note unchanged; project API key must not be replaced when only project/org metadata changes.
+						plancheck.ExpectResourceAction("langfuse_project_api_key.test", plancheck.ResourceActionNoop),
+					},
+				},
 				Check: resource.ComposeAggregateTestCheckFunc(
 					// Organization unchanged but metadata updated
 					resource.TestCheckResourceAttr("langfuse_organization.test", "name", orgName),
@@ -110,6 +118,7 @@ func TestAccLangfuseWorkflow(t *testing.T) {
 					// API keys still work
 					resource.TestCheckResourceAttrSet("langfuse_organization_api_key.test", "public_key"),
 					resource.TestCheckResourceAttrSet("langfuse_project_api_key.test", "public_key"),
+					resource.TestCheckResourceAttr("langfuse_project_api_key.test", "note", "acceptance-workflow"),
 				),
 			},
 			// Step 6: Explicit cleanup in dependency order to avoid cleanup issues
@@ -241,6 +250,7 @@ resource "langfuse_project_api_key" "test" {
   project_id               = langfuse_project.test.id
   organization_public_key  = langfuse_organization_api_key.test.public_key
   organization_private_key = langfuse_organization_api_key.test.secret_key
+  note                     = "acceptance-workflow"
 }
 `, host, adminKey, orgName, projectName)
 }
@@ -285,6 +295,7 @@ resource "langfuse_project_api_key" "test" {
   project_id               = langfuse_project.test.id
   organization_public_key  = langfuse_organization_api_key.test.public_key
   organization_private_key = langfuse_organization_api_key.test.secret_key
+  note                     = "acceptance-workflow"
 }
 `, host, adminKey, orgName, projectName)
 }
@@ -468,6 +479,86 @@ resource "langfuse_project" "import_test" {
   }
 }
 `, host, adminKey, orgName, projectName)
+}
+
+// TestAccLangfuseProjectApiKeyNoteReplace checks that changing note plans replacement (RequiresReplace),
+// since the Langfuse API only accepts note on create.
+func TestAccLangfuseProjectApiKeyNoteReplace(t *testing.T) {
+	if os.Getenv("TF_ACC") != "1" {
+		t.Skip("TF_ACC not set - skipping acceptance test")
+	}
+
+	testAccPreCheck(t)
+
+	orgName := fmt.Sprintf("note-replace-org-%d", rand.Intn(1000000))
+	projectName := fmt.Sprintf("note-replace-proj-%d", rand.Intn(1000000))
+
+	resource.Test(t, resource.TestCase{
+		ProtoV6ProviderFactories: testAccProtoV6ProviderFactories,
+		CheckDestroy:             testAccCheckLangfuseResourcesDestroyed,
+		Steps: []resource.TestStep{
+			{
+				Config: testAccProjectApiKeyNoteConfig(orgName, projectName, "note-before"),
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("langfuse_project_api_key.note_test", "note", "note-before"),
+					resource.TestCheckResourceAttrSet("langfuse_project_api_key.note_test", "id"),
+					resource.TestCheckResourceAttrSet("langfuse_project_api_key.note_test", "public_key"),
+					resource.TestCheckResourceAttrSet("langfuse_project_api_key.note_test", "secret_key"),
+				),
+			},
+			{
+				Config: testAccProjectApiKeyNoteConfig(orgName, projectName, "note-after"),
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("langfuse_project_api_key.note_test", plancheck.ResourceActionReplace),
+					},
+					PostApplyPostRefresh: []plancheck.PlanCheck{
+						plancheck.ExpectResourceAction("langfuse_project_api_key.note_test", plancheck.ResourceActionNoop),
+					},
+				},
+				Check: resource.ComposeAggregateTestCheckFunc(
+					resource.TestCheckResourceAttr("langfuse_project_api_key.note_test", "note", "note-after"),
+					resource.TestCheckResourceAttrSet("langfuse_project_api_key.note_test", "id"),
+					resource.TestCheckResourceAttrSet("langfuse_project_api_key.note_test", "public_key"),
+					resource.TestCheckResourceAttrSet("langfuse_project_api_key.note_test", "secret_key"),
+				),
+			},
+		},
+	})
+}
+
+func testAccProjectApiKeyNoteConfig(orgName, projectName, projectKeyNote string) string {
+	host := os.Getenv("LANGFUSE_HOST")
+	adminKey := os.Getenv("LANGFUSE_ADMIN_KEY")
+
+	return fmt.Sprintf(`
+provider "langfuse" {
+  host          = "%s"
+  admin_api_key = "%s"
+}
+
+resource "langfuse_organization" "note_test" {
+  name = "%s"
+}
+
+resource "langfuse_organization_api_key" "note_test" {
+  organization_id = langfuse_organization.note_test.id
+}
+
+resource "langfuse_project" "note_test" {
+  name                     = "%s"
+  organization_id          = langfuse_organization.note_test.id
+  organization_public_key  = langfuse_organization_api_key.note_test.public_key
+  organization_private_key = langfuse_organization_api_key.note_test.secret_key
+}
+
+resource "langfuse_project_api_key" "note_test" {
+  project_id               = langfuse_project.note_test.id
+  organization_public_key  = langfuse_organization_api_key.note_test.public_key
+  organization_private_key = langfuse_organization_api_key.note_test.secret_key
+  note                     = "%s"
+}
+`, host, adminKey, orgName, projectName, projectKeyNote)
 }
 
 var testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){

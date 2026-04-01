@@ -21,6 +21,10 @@ description: |-
 - `organization_public_key` (String) Organization public key to authenticate the call.
 - `project_id` (String) The ID of the project the key belongs to.
 
+### Optional
+
+- `note` (String) Optional note for the API key (POST /api/public/projects/{projectId}/apiKeys). Because the Langfuse public API only accepts a note at creation time, changing this attribute forces replacement: the old key is deleted and a new one is created (new id and credentials).
+
 ### Read-Only
 
 - `id` (String) The ID of this resource.
