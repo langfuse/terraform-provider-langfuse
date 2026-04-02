@@ -9,8 +9,10 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
 	"github.com/hashicorp/terraform-plugin-testing/helper/resource"
+	"github.com/hashicorp/terraform-plugin-testing/knownvalue"
 	"github.com/hashicorp/terraform-plugin-testing/plancheck"
 	"github.com/hashicorp/terraform-plugin-testing/terraform"
+	"github.com/hashicorp/terraform-plugin-testing/tfjsonpath"
 )
 
 // TestAccLangfuseWorkflow tests the complete workflow of creating and managing
@@ -94,7 +96,23 @@ func TestAccLangfuseWorkflow(t *testing.T) {
 					resource.TestCheckResourceAttr("langfuse_project_api_key.test", "note", "acceptance-workflow"),
 				),
 			},
-			// Step 5: Update resources with metadata changes (test updates work correctly)
+			// Step 5: Plan-only — org/project identity must stay known; API keys must not be replaced
+			// when only org metadata and project fields change (regression for computed-id unknown churn).
+			{
+				Config:   testAccLangfuseWorkflowConfig_Step5(orgName, projectName+"updated"),
+				PlanOnly: true,
+				ConfigPlanChecks: resource.ConfigPlanChecks{
+					PreApply: []plancheck.PlanCheck{
+						plancheck.ExpectKnownValue("langfuse_organization.test", tfjsonpath.New("id"), knownvalue.NotNull()),
+						plancheck.ExpectKnownValue("langfuse_project.test", tfjsonpath.New("id"), knownvalue.NotNull()),
+						plancheck.ExpectKnownValue("langfuse_organization_api_key.test", tfjsonpath.New("organization_id"), knownvalue.NotNull()),
+						plancheck.ExpectKnownValue("langfuse_project_api_key.test", tfjsonpath.New("project_id"), knownvalue.NotNull()),
+						plancheck.ExpectResourceAction("langfuse_organization_api_key.test", plancheck.ResourceActionNoop),
+						plancheck.ExpectResourceAction("langfuse_project_api_key.test", plancheck.ResourceActionNoop),
+					},
+				},
+			},
+			// Step 6: Apply the same metadata/name updates
 			{
 				Config: testAccLangfuseWorkflowConfig_Step5(orgName, projectName+"updated"),
 				ConfigPlanChecks: resource.ConfigPlanChecks{
@@ -121,7 +139,7 @@ func TestAccLangfuseWorkflow(t *testing.T) {
 					resource.TestCheckResourceAttr("langfuse_project_api_key.test", "note", "acceptance-workflow"),
 				),
 			},
-			// Step 6: Explicit cleanup in dependency order to avoid cleanup issues
+			// Step 7: Explicit cleanup in dependency order to avoid cleanup issues
 			{
 				Config: testAccLangfuseWorkflowConfig_Cleanup(),
 				Check:  resource.ComposeAggregateTestCheckFunc(
