@@ -65,6 +65,36 @@ func (mr *MockOrganizationClientMockRecorder) CreateProjectApiKey(arg0, arg1 int
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateProjectApiKey", reflect.TypeOf((*MockOrganizationClient)(nil).CreateProjectApiKey), arg0, arg1)
 }
 
+// FindSCIMUserByEmail mocks base method.
+func (m *MockOrganizationClient) FindSCIMUserByEmail(arg0 context.Context, arg1 string) (*langfuse.SCIMUserResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindSCIMUserByEmail", arg0, arg1)
+	ret0, _ := ret[0].(*langfuse.SCIMUserResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindSCIMUserByEmail indicates an expected call of FindSCIMUserByEmail.
+func (mr *MockOrganizationClientMockRecorder) FindSCIMUserByEmail(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindSCIMUserByEmail", reflect.TypeOf((*MockOrganizationClient)(nil).FindSCIMUserByEmail), arg0, arg1)
+}
+
+// GetSCIMUser mocks base method.
+func (m *MockOrganizationClient) GetSCIMUser(arg0 context.Context, arg1 string) (*langfuse.SCIMUserResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSCIMUser", arg0, arg1)
+	ret0, _ := ret[0].(*langfuse.SCIMUserResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSCIMUser indicates an expected call of GetSCIMUser.
+func (mr *MockOrganizationClientMockRecorder) GetSCIMUser(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSCIMUser", reflect.TypeOf((*MockOrganizationClient)(nil).GetSCIMUser), arg0, arg1)
+}
+
 // CreateSCIMUser mocks base method.
 func (m *MockOrganizationClient) CreateSCIMUser(arg0 context.Context, arg1 *langfuse.SCIMUserRequest) (*langfuse.SCIMUserResponse, error) {
 	m.ctrl.T.Helper()

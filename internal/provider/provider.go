@@ -70,6 +70,7 @@ func (p *langfuseProvider) Configure(ctx context.Context, req provider.Configure
 func (p *langfuseProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
 	return []func() datasource.DataSource{
 		NewOrganizationDataSource,
+		NewUserDataSource,
 	}
 }
 
