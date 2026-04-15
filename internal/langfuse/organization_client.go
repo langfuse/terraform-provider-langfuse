@@ -136,6 +136,26 @@ type removeMemberResponse struct {
 	Message string `json:"message"`
 }
 
+type ProjectMembership struct {
+	UserID string `json:"userId"`
+	Role   string `json:"role"`
+	Email  string `json:"email,omitempty"`
+}
+
+type listProjectMembershipsResponse struct {
+	Members []ProjectMembership `json:"members"`
+}
+
+type UpsertProjectMemberRequest struct {
+	UserID string `json:"userId"`
+	Role   string `json:"role"`
+}
+
+type removeProjectMemberResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message,omitempty"`
+}
+
 //go:generate mockgen -destination=./mocks/mock_organization_client.go -package=mocks github.com/langfuse/terraform-provider-langfuse/internal/langfuse OrganizationClient
 
 type OrganizationClient interface {
@@ -156,6 +176,10 @@ type OrganizationClient interface {
 	CreateSCIMUser(ctx context.Context, request *SCIMUserRequest) (*SCIMUserResponse, error)
 	GetSCIMUser(ctx context.Context, userID string) (*SCIMUserResponse, error)
 	FindSCIMUserByEmail(ctx context.Context, email string) (*SCIMUserResponse, error)
+	ListProjectMemberships(ctx context.Context, projectID string) ([]ProjectMembership, error)
+	GetProjectMembership(ctx context.Context, projectID string, userID string) (*ProjectMembership, error)
+	UpsertProjectMembership(ctx context.Context, projectID string, request *UpsertProjectMemberRequest) (*ProjectMembership, error)
+	RemoveProjectMember(ctx context.Context, projectID string, userID string) error
 }
 
 type organizationClientImpl struct {
@@ -466,6 +490,73 @@ func (c *organizationClientImpl) FindSCIMUserByEmail(ctx context.Context, email 
 	}
 
 	return &list.Resources[0], nil
+}
+
+func (c *organizationClientImpl) ListProjectMemberships(ctx context.Context, projectID string) ([]ProjectMembership, error) {
+	resp, err := c.makeRequest(ctx, http.MethodGet, fmt.Sprintf("api/public/projects/%s/members", projectID), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var listResp listProjectMembershipsResponse
+	if err := decodeResponse(resp, &listResp); err != nil {
+		return nil, err
+	}
+
+	return listResp.Members, nil
+}
+
+func (c *organizationClientImpl) GetProjectMembership(ctx context.Context, projectID string, userID string) (*ProjectMembership, error) {
+	members, err := c.ListProjectMemberships(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, m := range members {
+		if m.UserID == userID {
+			return &m, nil
+		}
+	}
+
+	return nil, fmt.Errorf("cannot find project membership for user %s in project %s", userID, projectID)
+}
+
+func (c *organizationClientImpl) UpsertProjectMembership(ctx context.Context, projectID string, request *UpsertProjectMemberRequest) (*ProjectMembership, error) {
+	resp, err := c.makeRequest(ctx, http.MethodPut, fmt.Sprintf("api/public/projects/%s/members", projectID), request)
+	if err != nil {
+		return nil, err
+	}
+
+	var membership ProjectMembership
+	if err := decodeResponse(resp, &membership); err != nil {
+		return nil, err
+	}
+
+	return &membership, nil
+}
+
+func (c *organizationClientImpl) RemoveProjectMember(ctx context.Context, projectID string, userID string) error {
+	deleteRequest := struct {
+		UserID string `json:"userId"`
+	}{
+		UserID: userID,
+	}
+
+	resp, err := c.makeRequest(ctx, http.MethodDelete, fmt.Sprintf("api/public/projects/%s/members", projectID), deleteRequest)
+	if err != nil {
+		return err
+	}
+
+	var removeResp removeProjectMemberResponse
+	if err := decodeResponse(resp, &removeResp); err != nil {
+		return err
+	}
+
+	if !removeResp.Success {
+		return fmt.Errorf("failed to remove member %s from project %s: %s", userID, projectID, removeResp.Message)
+	}
+
+	return nil
 }
 
 func (c *organizationClientImpl) CreateSCIMUser(ctx context.Context, request *SCIMUserRequest) (*SCIMUserResponse, error) {

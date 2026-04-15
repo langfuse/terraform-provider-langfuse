@@ -286,3 +286,62 @@ func (mr *MockOrganizationClientMockRecorder) UpsertLlmConnection(arg0, arg1 int
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertLlmConnection", reflect.TypeOf((*MockOrganizationClient)(nil).UpsertLlmConnection), arg0, arg1)
 }
+
+// ListProjectMemberships mocks base method.
+func (m *MockOrganizationClient) ListProjectMemberships(arg0 context.Context, arg1 string) ([]langfuse.ProjectMembership, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListProjectMemberships", arg0, arg1)
+	ret0, _ := ret[0].([]langfuse.ProjectMembership)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListProjectMemberships indicates an expected call of ListProjectMemberships.
+func (mr *MockOrganizationClientMockRecorder) ListProjectMemberships(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListProjectMemberships", reflect.TypeOf((*MockOrganizationClient)(nil).ListProjectMemberships), arg0, arg1)
+}
+
+// GetProjectMembership mocks base method.
+func (m *MockOrganizationClient) GetProjectMembership(arg0 context.Context, arg1, arg2 string) (*langfuse.ProjectMembership, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetProjectMembership", arg0, arg1, arg2)
+	ret0, _ := ret[0].(*langfuse.ProjectMembership)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetProjectMembership indicates an expected call of GetProjectMembership.
+func (mr *MockOrganizationClientMockRecorder) GetProjectMembership(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProjectMembership", reflect.TypeOf((*MockOrganizationClient)(nil).GetProjectMembership), arg0, arg1, arg2)
+}
+
+// UpsertProjectMembership mocks base method.
+func (m *MockOrganizationClient) UpsertProjectMembership(arg0 context.Context, arg1 string, arg2 *langfuse.UpsertProjectMemberRequest) (*langfuse.ProjectMembership, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpsertProjectMembership", arg0, arg1, arg2)
+	ret0, _ := ret[0].(*langfuse.ProjectMembership)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpsertProjectMembership indicates an expected call of UpsertProjectMembership.
+func (mr *MockOrganizationClientMockRecorder) UpsertProjectMembership(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpsertProjectMembership", reflect.TypeOf((*MockOrganizationClient)(nil).UpsertProjectMembership), arg0, arg1, arg2)
+}
+
+// RemoveProjectMember mocks base method.
+func (m *MockOrganizationClient) RemoveProjectMember(arg0 context.Context, arg1, arg2 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RemoveProjectMember", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// RemoveProjectMember indicates an expected call of RemoveProjectMember.
+func (mr *MockOrganizationClientMockRecorder) RemoveProjectMember(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RemoveProjectMember", reflect.TypeOf((*MockOrganizationClient)(nil).RemoveProjectMember), arg0, arg1, arg2)
+}
