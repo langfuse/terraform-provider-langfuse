@@ -30,6 +30,7 @@ type organizationMembershipResourceModel struct {
 	Username               types.String `tfsdk:"username"`
 	OrganizationPublicKey  types.String `tfsdk:"organization_public_key"`
 	OrganizationPrivateKey types.String `tfsdk:"organization_private_key"`
+	IgnoreDestroy          types.Bool   `tfsdk:"ignore_destroy"`
 }
 
 type organizationMembershipResource struct {
@@ -106,6 +107,10 @@ func (r *organizationMembershipResource) Schema(ctx context.Context, req resourc
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(),
 				},
+			},
+			"ignore_destroy": schema.BoolAttribute{
+				Optional:    true,
+				Description: "When true, the resource will not be deleted in Langfuse when destroyed via Terraform. Defaults to false.",
 			},
 		},
 	}
@@ -355,6 +360,10 @@ func (r *organizationMembershipResource) Delete(ctx context.Context, req resourc
 	var state organizationMembershipResourceModel
 	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
 	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if !state.IgnoreDestroy.IsNull() && state.IgnoreDestroy.ValueBool() {
 		return
 	}
 

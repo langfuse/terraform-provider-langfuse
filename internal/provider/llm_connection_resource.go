@@ -46,6 +46,7 @@ type llmConnectionResourceModel struct {
 	ExtraHeaderKeys  types.List   `tfsdk:"extra_header_keys"`
 	CreatedAt        types.String `tfsdk:"created_at"`
 	UpdatedAt        types.String `tfsdk:"updated_at"`
+	IgnoreDestroy    types.Bool   `tfsdk:"ignore_destroy"`
 }
 
 type llmConnectionResource struct {
@@ -169,6 +170,10 @@ func (r *llmConnectionResource) Schema(ctx context.Context, req resource.SchemaR
 				Computed:    true,
 				Description: "Timestamp when the connection was last updated.",
 			},
+			"ignore_destroy": schema.BoolAttribute{
+				Optional:    true,
+				Description: "When true, the resource will not be deleted in Langfuse when destroyed via Terraform. Defaults to false.",
+			},
 		},
 	}
 }
@@ -245,6 +250,17 @@ func (r *llmConnectionResource) Update(ctx context.Context, req resource.UpdateR
 }
 
 func (r *llmConnectionResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
+	var data llmConnectionResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
+
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if !data.IgnoreDestroy.IsNull() && data.IgnoreDestroy.ValueBool() {
+		return
+	}
+
 	resp.Diagnostics.AddWarning(
 		"LLM connection deletion skipped",
 		"The Langfuse API does not expose an endpoint to delete LLM connections. The resource will be removed from state but remain in Langfuse.",
@@ -450,5 +466,6 @@ func emptyLlmConnectionState() *llmConnectionResourceModel {
 		ExtraHeaderKeys:   types.ListNull(types.StringType),
 		CreatedAt:         types.StringValue(""),
 		UpdatedAt:         types.StringValue(""),
+		IgnoreDestroy:     types.BoolNull(),
 	}
 }

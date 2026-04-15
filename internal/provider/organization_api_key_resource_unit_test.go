@@ -100,6 +100,7 @@ func TestOrganizationApiKeyResourceCRUD(t *testing.T) {
 			"organization_id": tftypes.NewValue(tftypes.String, orgID),
 			"public_key":      tftypes.NewValue(tftypes.String, nil),
 			"secret_key":      tftypes.NewValue(tftypes.String, nil),
+			"ignore_destroy":  tftypes.NewValue(tftypes.Bool, nil),
 		}), Schema: resourceSchema}
 		createResp.State.Schema = resourceSchema
 		r.Create(ctx, resource.CreateRequest{Config: createConfig}, &createResp)
@@ -154,6 +155,7 @@ func TestOrganizationApiKeyResource_Read_NotFound(t *testing.T) {
 			"organization_id": tftypes.NewValue(tftypes.String, "org-123"),
 			"public_key":      tftypes.NewValue(tftypes.String, "pk-1234"),
 			"secret_key":      tftypes.NewValue(tftypes.String, "sk-1234"),
+			"ignore_destroy":  tftypes.NewValue(tftypes.Bool, nil),
 		}),
 	}
 
@@ -196,6 +198,7 @@ func TestOrganizationApiKeyResource_Read_Error(t *testing.T) {
 			"organization_id": tftypes.NewValue(tftypes.String, "org-123"),
 			"public_key":      tftypes.NewValue(tftypes.String, "pk-1234"),
 			"secret_key":      tftypes.NewValue(tftypes.String, "sk-1234"),
+			"ignore_destroy":  tftypes.NewValue(tftypes.Bool, nil),
 		}),
 	}
 
@@ -216,6 +219,40 @@ func TestOrganizationApiKeyResource_Read_Error(t *testing.T) {
 	}
 }
 
+func TestOrganizationApiKeyResource_Delete_IgnoreDestroy(t *testing.T) {
+	t.Parallel()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx := context.Background()
+	clientFactory := mocks.NewMockClientFactory(ctrl)
+	r := &organizationApiKeyResource{}
+	var configureResp resource.ConfigureResponse
+	r.Configure(ctx, resource.ConfigureRequest{ProviderData: clientFactory}, &configureResp)
+	var schemaResp resource.SchemaResponse
+	r.Schema(ctx, resource.SchemaRequest{}, &schemaResp)
+
+	// No EXPECT on AdminClient.DeleteOrganizationApiKey — it must NOT be called
+
+	state := tfsdk.State{
+		Schema: schemaResp.Schema,
+		Raw: buildOrgApiKeyObjectValue(map[string]tftypes.Value{
+			"id":              tftypes.NewValue(tftypes.String, "oak-123"),
+			"organization_id": tftypes.NewValue(tftypes.String, "org-123"),
+			"public_key":      tftypes.NewValue(tftypes.String, "pk-1234"),
+			"secret_key":      tftypes.NewValue(tftypes.String, "sk-1234"),
+			"ignore_destroy":  tftypes.NewValue(tftypes.Bool, true),
+		}),
+	}
+
+	var resp resource.DeleteResponse
+	resp.State.Schema = schemaResp.Schema
+	r.Delete(ctx, resource.DeleteRequest{State: state}, &resp)
+
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics: %v", resp.Diagnostics)
+	}
+}
+
 func buildOrgApiKeyObjectValue(values map[string]tftypes.Value) tftypes.Value {
 	return tftypes.NewValue(
 		tftypes.Object{
@@ -224,11 +261,13 @@ func buildOrgApiKeyObjectValue(values map[string]tftypes.Value) tftypes.Value {
 				"organization_id": tftypes.String,
 				"public_key":      tftypes.String,
 				"secret_key":      tftypes.String,
+				"ignore_destroy":  tftypes.Bool,
 			},
 			OptionalAttributes: map[string]struct{}{
-				"id":         {},
-				"public_key": {},
-				"secret_key": {},
+				"id":             {},
+				"public_key":     {},
+				"secret_key":     {},
+				"ignore_destroy": {},
 			},
 		},
 		values,

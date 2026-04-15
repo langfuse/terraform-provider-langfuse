@@ -20,9 +20,10 @@ func NewOrganizationResource() resource.Resource {
 }
 
 type organizationResourceModel struct {
-	ID       types.String `tfsdk:"id"`
-	Name     types.String `tfsdk:"name"`
-	Metadata types.Map    `tfsdk:"metadata"`
+	ID            types.String `tfsdk:"id"`
+	Name          types.String `tfsdk:"name"`
+	Metadata      types.Map    `tfsdk:"metadata"`
+	IgnoreDestroy types.Bool   `tfsdk:"ignore_destroy"`
 }
 
 type organizationResource struct {
@@ -55,6 +56,10 @@ func (r *organizationResource) Schema(ctx context.Context, req resource.SchemaRe
 				Optional:    true,
 				ElementType: types.StringType,
 				Description: "Metadata for the organization as key-value pairs.",
+			},
+			"ignore_destroy": schema.BoolAttribute{
+				Optional:    true,
+				Description: "When true, the resource will not be deleted in Langfuse when destroyed via Terraform. Defaults to false.",
 			},
 		},
 	}
@@ -98,9 +103,10 @@ func (r *organizationResource) Create(ctx context.Context, req resource.CreateRe
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &organizationResourceModel{
-		ID:       types.StringValue(org.ID),
-		Name:     types.StringValue(org.Name),
-		Metadata: metadataMap,
+		ID:            types.StringValue(org.ID),
+		Name:          types.StringValue(org.Name),
+		Metadata:      metadataMap,
+		IgnoreDestroy: data.IgnoreDestroy,
 	})...)
 }
 
@@ -131,9 +137,10 @@ func (r *organizationResource) Read(ctx context.Context, req resource.ReadReques
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &organizationResourceModel{
-		ID:       types.StringValue(org.ID),
-		Name:     types.StringValue(org.Name),
-		Metadata: metadataMap,
+		ID:            types.StringValue(org.ID),
+		Name:          types.StringValue(org.Name),
+		Metadata:      metadataMap,
+		IgnoreDestroy: data.IgnoreDestroy,
 	})...)
 }
 
@@ -186,9 +193,10 @@ func (r *organizationResource) Update(ctx context.Context, req resource.UpdateRe
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &organizationResourceModel{
-		ID:       types.StringValue(org.ID),
-		Name:     types.StringValue(org.Name),
-		Metadata: metadataMap,
+		ID:            types.StringValue(org.ID),
+		Name:          types.StringValue(org.Name),
+		Metadata:      metadataMap,
+		IgnoreDestroy: data.IgnoreDestroy,
 	})...)
 }
 
@@ -197,6 +205,10 @@ func (r *organizationResource) Delete(ctx context.Context, req resource.DeleteRe
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 
 	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if !data.IgnoreDestroy.IsNull() && data.IgnoreDestroy.ValueBool() {
 		return
 	}
 
@@ -253,7 +265,7 @@ func (r *organizationResource) ImportState(ctx context.Context, req resource.Imp
 		ID:       types.StringValue(org.ID),
 		Name:     types.StringValue(org.Name),
 		Metadata: metadataMap,
-	})...)
+	})...)  // IgnoreDestroy is not set on import (defaults to null/false)
 
 	// Set the ID attribute explicitly (this is a best practice for import)
 	resource.ImportStatePassthroughID(ctx, path.Root("id"), req, resp)

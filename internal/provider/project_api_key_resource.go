@@ -2,13 +2,14 @@ package provider
 
 import (
 	"context"
+	"strings"
 
-	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
+	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
 )
 
 var _ resource.Resource = &projectApiKeyResource{}
@@ -24,6 +25,7 @@ type projectApiKeyResourceModel struct {
 	ProjectID              types.String `tfsdk:"project_id"`
 	PublicKey              types.String `tfsdk:"public_key"`
 	SecretKey              types.String `tfsdk:"secret_key"`
+	IgnoreDestroy          types.Bool   `tfsdk:"ignore_destroy"`
 }
 
 type projectApiKeyResource struct {
@@ -88,6 +90,10 @@ func (r *projectApiKeyResource) Schema(ctx context.Context, req resource.SchemaR
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
+			"ignore_destroy": schema.BoolAttribute{
+				Optional:    true,
+				Description: "When true, the resource will not be deleted in Langfuse when destroyed via Terraform. Defaults to false.",
+			},
 		},
 	}
 }
@@ -114,6 +120,7 @@ func (r *projectApiKeyResource) Create(ctx context.Context, req resource.CreateR
 		ProjectID:              types.StringValue(data.ProjectID.ValueString()),
 		PublicKey:              types.StringValue(projectApiKey.PublicKey),
 		SecretKey:              types.StringValue(projectApiKey.SecretKey),
+		IgnoreDestroy:          data.IgnoreDestroy,
 	})...)
 }
 
@@ -127,7 +134,11 @@ func (r *projectApiKeyResource) Read(ctx context.Context, req resource.ReadReque
 	organizationClient := r.ClientFactory.NewOrganizationClient(data.OrganizationPublicKey.ValueString(), data.OrganizationPrivateKey.ValueString())
 	_, err := organizationClient.GetProjectApiKey(ctx, data.ProjectID.ValueString(), data.ID.ValueString())
 	if err != nil {
-		resp.State.RemoveResource(ctx)
+		if strings.Contains(err.Error(), "cannot find API key") {
+			resp.State.RemoveResource(ctx)
+			return
+		}
+		resp.Diagnostics.AddError("Error reading project API key", err.Error())
 		return
 	}
 
@@ -143,6 +154,10 @@ func (r *projectApiKeyResource) Delete(ctx context.Context, req resource.DeleteR
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 
 	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if !data.IgnoreDestroy.IsNull() && data.IgnoreDestroy.ValueBool() {
 		return
 	}
 

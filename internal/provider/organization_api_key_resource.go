@@ -23,6 +23,7 @@ type organizationApiKeyResourceModel struct {
 	OrganizationID types.String `tfsdk:"organization_id"`
 	PublicKey      types.String `tfsdk:"public_key"`
 	SecretKey      types.String `tfsdk:"secret_key"`
+	IgnoreDestroy  types.Bool   `tfsdk:"ignore_destroy"`
 }
 
 type organizationApiKeyResource struct {
@@ -74,6 +75,10 @@ func (r *organizationApiKeyResource) Schema(ctx context.Context, req resource.Sc
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
+			"ignore_destroy": schema.BoolAttribute{
+				Optional:    true,
+				Description: "When true, the resource will not be deleted in Langfuse when destroyed via Terraform. Defaults to false.",
+			},
 		},
 	}
 }
@@ -97,6 +102,7 @@ func (r *organizationApiKeyResource) Create(ctx context.Context, req resource.Cr
 		OrganizationID: types.StringValue(data.OrganizationID.ValueString()),
 		PublicKey:      types.StringValue(orgKey.PublicKey),
 		SecretKey:      types.StringValue(orgKey.SecretKey),
+		IgnoreDestroy:  data.IgnoreDestroy,
 	})...)
 }
 
@@ -130,6 +136,10 @@ func (r *organizationApiKeyResource) Delete(ctx context.Context, req resource.De
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 
 	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if !data.IgnoreDestroy.IsNull() && data.IgnoreDestroy.ValueBool() {
 		return
 	}
 

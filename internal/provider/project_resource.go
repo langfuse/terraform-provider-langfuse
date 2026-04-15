@@ -29,6 +29,7 @@ type projectResourceModel struct {
 	OrganizationID         types.String `tfsdk:"organization_id"`
 	OrganizationPublicKey  types.String `tfsdk:"organization_public_key"`
 	OrganizationPrivateKey types.String `tfsdk:"organization_private_key"`
+	IgnoreDestroy          types.Bool   `tfsdk:"ignore_destroy"`
 }
 
 type projectResource struct {
@@ -92,6 +93,10 @@ func (r *projectResource) Schema(ctx context.Context, req resource.SchemaRequest
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
+			"ignore_destroy": schema.BoolAttribute{
+				Optional:    true,
+				Description: "When true, the resource will not be deleted in Langfuse when destroyed via Terraform. Defaults to false.",
+			},
 		},
 	}
 }
@@ -143,6 +148,7 @@ func (r *projectResource) Create(ctx context.Context, req resource.CreateRequest
 		OrganizationID:         types.StringValue(data.OrganizationID.ValueString()),
 		OrganizationPublicKey:  types.StringValue(data.OrganizationPublicKey.ValueString()),
 		OrganizationPrivateKey: types.StringValue(data.OrganizationPrivateKey.ValueString()),
+		IgnoreDestroy:          data.IgnoreDestroy,
 	})...)
 }
 
@@ -182,6 +188,7 @@ func (r *projectResource) Read(ctx context.Context, req resource.ReadRequest, re
 		OrganizationID:         types.StringValue(data.OrganizationID.ValueString()),
 		OrganizationPublicKey:  types.StringValue(data.OrganizationPublicKey.ValueString()),
 		OrganizationPrivateKey: types.StringValue(data.OrganizationPrivateKey.ValueString()),
+		IgnoreDestroy:          data.IgnoreDestroy,
 	})...)
 }
 
@@ -244,6 +251,7 @@ func (r *projectResource) Update(ctx context.Context, req resource.UpdateRequest
 		OrganizationID:         types.StringValue(data.OrganizationID.ValueString()),
 		OrganizationPublicKey:  types.StringValue(data.OrganizationPublicKey.ValueString()),
 		OrganizationPrivateKey: types.StringValue(data.OrganizationPrivateKey.ValueString()),
+		IgnoreDestroy:          data.IgnoreDestroy,
 	})...)
 }
 
@@ -252,6 +260,10 @@ func (r *projectResource) Delete(ctx context.Context, req resource.DeleteRequest
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 
 	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if !data.IgnoreDestroy.IsNull() && data.IgnoreDestroy.ValueBool() {
 		return
 	}
 

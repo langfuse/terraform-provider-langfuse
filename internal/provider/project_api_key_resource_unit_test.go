@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -113,6 +114,7 @@ func TestProjectApiKeyResourceCRUD(t *testing.T) {
 			"organization_private_key": tftypes.NewValue(tftypes.String, privateKey),
 			"public_key":               tftypes.NewValue(tftypes.String, nil),
 			"secret_key":               tftypes.NewValue(tftypes.String, nil),
+			"ignore_destroy":           tftypes.NewValue(tftypes.Bool, nil),
 		}), Schema: resourceSchema}
 		createResp.State.Schema = resourceSchema
 
@@ -145,6 +147,89 @@ func TestProjectApiKeyResourceCRUD(t *testing.T) {
 	})
 }
 
+func TestProjectApiKeyResource_Read_NotFound(t *testing.T) {
+	t.Parallel()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx := context.Background()
+	clientFactory := mocks.NewMockClientFactory(ctrl)
+	r := &projectApiKeyResource{}
+	var configureResp resource.ConfigureResponse
+	r.Configure(ctx, resource.ConfigureRequest{ProviderData: clientFactory}, &configureResp)
+	var schemaResp resource.SchemaResponse
+	r.Schema(ctx, resource.SchemaRequest{}, &schemaResp)
+
+	state := tfsdk.State{
+		Schema: schemaResp.Schema,
+		Raw: buildApiKeyObjectValue(map[string]tftypes.Value{
+			"id":                       tftypes.NewValue(tftypes.String, "pak-123"),
+			"project_id":               tftypes.NewValue(tftypes.String, "proj-123"),
+			"organization_public_key":  tftypes.NewValue(tftypes.String, "pk-1234"),
+			"organization_private_key": tftypes.NewValue(tftypes.String, "sk-1234"),
+			"public_key":               tftypes.NewValue(tftypes.String, "proj-pk"),
+			"secret_key":               tftypes.NewValue(tftypes.String, "proj-sk"),
+			"ignore_destroy":           tftypes.NewValue(tftypes.Bool, nil),
+		}),
+	}
+
+	clientFactory.OrganizationClient.EXPECT().
+		GetProjectApiKey(ctx, "proj-123", "pak-123").
+		Return(nil, fmt.Errorf("cannot find API key with ID pak-123 in project proj-123"))
+
+	var resp resource.ReadResponse
+	resp.State.Schema = schemaResp.Schema
+	r.Read(ctx, resource.ReadRequest{State: state}, &resp)
+
+	if resp.Diagnostics.HasError() {
+		t.Fatalf("expected no diagnostics on not-found, got: %v", resp.Diagnostics)
+	}
+	if !resp.State.Raw.IsNull() {
+		t.Fatal("expected state to be removed (null) when key is not found")
+	}
+}
+
+func TestProjectApiKeyResource_Read_Error(t *testing.T) {
+	t.Parallel()
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctx := context.Background()
+	clientFactory := mocks.NewMockClientFactory(ctrl)
+	r := &projectApiKeyResource{}
+	var configureResp resource.ConfigureResponse
+	r.Configure(ctx, resource.ConfigureRequest{ProviderData: clientFactory}, &configureResp)
+	var schemaResp resource.SchemaResponse
+	r.Schema(ctx, resource.SchemaRequest{}, &schemaResp)
+
+	state := tfsdk.State{
+		Schema: schemaResp.Schema,
+		Raw: buildApiKeyObjectValue(map[string]tftypes.Value{
+			"id":                       tftypes.NewValue(tftypes.String, "pak-123"),
+			"project_id":               tftypes.NewValue(tftypes.String, "proj-123"),
+			"organization_public_key":  tftypes.NewValue(tftypes.String, "pk-1234"),
+			"organization_private_key": tftypes.NewValue(tftypes.String, "sk-1234"),
+			"public_key":               tftypes.NewValue(tftypes.String, "proj-pk"),
+			"secret_key":               tftypes.NewValue(tftypes.String, "proj-sk"),
+			"ignore_destroy":           tftypes.NewValue(tftypes.Bool, nil),
+		}),
+	}
+
+	clientFactory.OrganizationClient.EXPECT().
+		GetProjectApiKey(ctx, "proj-123", "pak-123").
+		Return(nil, fmt.Errorf("internal server error"))
+
+	var resp resource.ReadResponse
+	resp.State.Schema = schemaResp.Schema
+	r.Read(ctx, resource.ReadRequest{State: state}, &resp)
+
+	if !resp.Diagnostics.HasError() {
+		t.Fatal("expected error diagnostic for non-404 error, got none")
+	}
+	errs := resp.Diagnostics.Errors()
+	if errs[0].Summary() != "Error reading project API key" {
+		t.Fatalf("unexpected error summary: %q", errs[0].Summary())
+	}
+}
+
 func buildApiKeyObjectValue(values map[string]tftypes.Value) tftypes.Value {
 	return tftypes.NewValue(
 		tftypes.Object{
@@ -155,11 +240,13 @@ func buildApiKeyObjectValue(values map[string]tftypes.Value) tftypes.Value {
 				"project_id":               tftypes.String,
 				"public_key":               tftypes.String,
 				"secret_key":               tftypes.String,
+				"ignore_destroy":           tftypes.Bool,
 			},
 			OptionalAttributes: map[string]struct{}{
-				"id":         {},
-				"public_key": {},
-				"secret_key": {},
+				"id":             {},
+				"public_key":     {},
+				"secret_key":     {},
+				"ignore_destroy": {},
 			},
 		},
 		values,

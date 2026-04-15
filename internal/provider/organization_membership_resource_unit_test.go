@@ -78,6 +78,7 @@ func TestOrganizationMembershipResource_Create_InvalidRole(t *testing.T) {
 		"username":                 tftypes.NewValue(tftypes.String, tftypes.UnknownValue),
 		"organization_public_key":  tftypes.NewValue(tftypes.String, "test-public"),
 		"organization_private_key": tftypes.NewValue(tftypes.String, "test-private"),
+		"ignore_destroy":           tftypes.NewValue(tftypes.Bool, nil),
 	}
 
 	schemaResp := resource.SchemaResponse{}
@@ -124,6 +125,7 @@ func TestOrganizationMembershipResource_Update_InvalidRole(t *testing.T) {
 		"username":                 tftypes.NewValue(tftypes.String, "testuser"),
 		"organization_public_key":  tftypes.NewValue(tftypes.String, "test-public"),
 		"organization_private_key": tftypes.NewValue(tftypes.String, "test-private"),
+		"ignore_destroy":           tftypes.NewValue(tftypes.Bool, nil),
 	}
 
 	stateValue := map[string]tftypes.Value{
@@ -135,6 +137,7 @@ func TestOrganizationMembershipResource_Update_InvalidRole(t *testing.T) {
 		"username":                 tftypes.NewValue(tftypes.String, "testuser"),
 		"organization_public_key":  tftypes.NewValue(tftypes.String, "test-public"),
 		"organization_private_key": tftypes.NewValue(tftypes.String, "test-private"),
+		"ignore_destroy":           tftypes.NewValue(tftypes.Bool, nil),
 	}
 
 	schemaResp := resource.SchemaResponse{}

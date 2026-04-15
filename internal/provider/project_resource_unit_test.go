@@ -152,6 +152,7 @@ func TestProjectResourceCRUD(t *testing.T) {
 				"organization_id":          tftypes.NewValue(tftypes.String, organizationID),
 				"organization_public_key":  tftypes.NewValue(tftypes.String, publicKey),
 				"organization_private_key": tftypes.NewValue(tftypes.String, privateKey),
+				"ignore_destroy":           tftypes.NewValue(tftypes.Bool, nil),
 			}),
 			Schema: resourceSchema,
 		}
@@ -209,6 +210,7 @@ func TestProjectResourceCRUD(t *testing.T) {
 				"organization_id":          tftypes.NewValue(tftypes.String, organizationID),
 				"organization_public_key":  tftypes.NewValue(tftypes.String, publicKey),
 				"organization_private_key": tftypes.NewValue(tftypes.String, privateKey),
+				"ignore_destroy":           tftypes.NewValue(tftypes.Bool, nil),
 			}),
 			Schema: resourceSchema,
 		}
@@ -258,6 +260,7 @@ func TestProjectResourceCRUD(t *testing.T) {
 			"organization_id":          tftypes.NewValue(tftypes.String, organizationID),
 			"organization_public_key":  tftypes.NewValue(tftypes.String, "pub-key"),
 			"organization_private_key": tftypes.NewValue(tftypes.String, "priv-key"),
+			"ignore_destroy":           tftypes.NewValue(tftypes.Bool, nil),
 		})
 
 		var readResp resource.ReadResponse
@@ -446,6 +449,7 @@ func buildProjectObjectValue(values map[string]tftypes.Value) tftypes.Value {
 				"organization_id":          tftypes.String,
 				"organization_public_key":  tftypes.String,
 				"organization_private_key": tftypes.String,
+				"ignore_destroy":           tftypes.Bool,
 			},
 			OptionalAttributes: map[string]struct{}{
 				"id":                       {},
@@ -454,6 +458,7 @@ func buildProjectObjectValue(values map[string]tftypes.Value) tftypes.Value {
 				"organization_id":          {},
 				"organization_public_key":  {},
 				"organization_private_key": {},
+				"ignore_destroy":           {},
 			},
 		},
 		values,

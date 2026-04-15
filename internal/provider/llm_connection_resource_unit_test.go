@@ -128,6 +128,7 @@ func TestLlmConnectionResourceCRUD(t *testing.T) {
 			"extra_header_keys":   tftypes.NewValue(tftypes.List{ElementType: tftypes.String}, nil),
 			"created_at":          tftypes.NewValue(tftypes.String, nil),
 			"updated_at":          tftypes.NewValue(tftypes.String, nil),
+			"ignore_destroy":      tftypes.NewValue(tftypes.Bool, nil),
 		}), Schema: resourceSchema}
 		createResp.State.Schema = resourceSchema
 
@@ -190,6 +191,7 @@ func buildLlmConnectionObjectValue(values map[string]tftypes.Value) tftypes.Valu
 				"extra_header_keys":   tftypes.List{ElementType: tftypes.String},
 				"created_at":          tftypes.String,
 				"updated_at":          tftypes.String,
+				"ignore_destroy":      tftypes.Bool,
 			},
 			OptionalAttributes: map[string]struct{}{
 				"id":                  {},
@@ -202,6 +204,7 @@ func buildLlmConnectionObjectValue(values map[string]tftypes.Value) tftypes.Valu
 				"extra_header_keys":   {},
 				"created_at":          {},
 				"updated_at":          {},
+				"ignore_destroy":      {},
 			},
 		},
 		values,

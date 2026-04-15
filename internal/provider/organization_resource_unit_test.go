@@ -132,9 +132,10 @@ func TestOrganizationResourceCRUD(t *testing.T) {
 
 		createConfig := tfsdk.Config{
 			Raw: buildObjectValue(map[string]tftypes.Value{
-				"id":       tftypes.NewValue(tftypes.String, nil),
-				"name":     tftypes.NewValue(tftypes.String, createName),
-				"metadata": metadataValue,
+				"id":             tftypes.NewValue(tftypes.String, nil),
+				"name":           tftypes.NewValue(tftypes.String, createName),
+				"metadata":       metadataValue,
+				"ignore_destroy": tftypes.NewValue(tftypes.Bool, nil),
 			}),
 			Schema: resourceSchema,
 		}
@@ -190,9 +191,10 @@ func TestOrganizationResourceCRUD(t *testing.T) {
 
 		updateConfig := tfsdk.Config{
 			Raw: buildObjectValue(map[string]tftypes.Value{
-				"id":       tftypes.NewValue(tftypes.String, "org-123"),
-				"name":     tftypes.NewValue(tftypes.String, newName),
-				"metadata": newMetadataValue,
+				"id":             tftypes.NewValue(tftypes.String, "org-123"),
+				"name":           tftypes.NewValue(tftypes.String, newName),
+				"metadata":       newMetadataValue,
+				"ignore_destroy": tftypes.NewValue(tftypes.Bool, nil),
 			}),
 			Schema: resourceSchema,
 		}
@@ -285,11 +287,16 @@ func buildObjectValue(values map[string]tftypes.Value) tftypes.Value {
 	return tftypes.NewValue(
 		tftypes.Object{
 			AttributeTypes: map[string]tftypes.Type{
-				"id":       tftypes.String,
-				"name":     tftypes.String,
-				"metadata": tftypes.Map{ElementType: tftypes.String},
+				"id":             tftypes.String,
+				"name":           tftypes.String,
+				"metadata":       tftypes.Map{ElementType: tftypes.String},
+				"ignore_destroy": tftypes.Bool,
 			},
-			OptionalAttributes: map[string]struct{}{"id": {}, "metadata": {}},
+			OptionalAttributes: map[string]struct{}{
+				"id":             {},
+				"metadata":       {},
+				"ignore_destroy": {},
+			},
 		},
 		values,
 	)
