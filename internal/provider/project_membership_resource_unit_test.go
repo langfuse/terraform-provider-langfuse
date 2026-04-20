@@ -455,7 +455,7 @@ func TestProjectMembershipResourceErrorHandling(t *testing.T) {
 	t.Run("Read_MembershipNotFound_RemovesResource", func(t *testing.T) {
 		clientFactory.OrganizationClient.EXPECT().
 			GetProjectMembership(ctx, projectID, "user-789").
-			Return(nil, fmt.Errorf("cannot find project membership"))
+			Return(nil, fmt.Errorf("%w: user-789 in project proj-123", langfuse.ErrProjectMembershipNotFound))
 
 		state := tfsdk.State{
 			Raw:    buildProjectMembershipStateValue(projectID, userEmail, "MEMBER", "user-789", "developer", publicKey, privateKey),

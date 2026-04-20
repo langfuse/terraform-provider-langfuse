@@ -2,9 +2,15 @@ package langfuse
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+)
+
+var (
+	ErrMembershipNotFound        = errors.New("membership not found")
+	ErrProjectMembershipNotFound = errors.New("project membership not found")
 )
 
 type Project struct {
@@ -108,6 +114,11 @@ type CreateProjectMembershipRequest struct {
 
 type DeleteProjectMembershipRequest struct {
 	UserID string `json:"userId"`
+}
+
+type deleteProjectMembershipResponse struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
 }
 
 type listProjectMembershipsResponse struct {
@@ -307,7 +318,7 @@ func (c *organizationClientImpl) GetMembership(ctx context.Context, membershipID
 		}
 	}
 
-	return nil, fmt.Errorf("cannot find membership with ID %s", membershipID)
+	return nil, fmt.Errorf("%w: ID %s", ErrMembershipNotFound, membershipID)
 }
 
 func (c *organizationClientImpl) UpdateMembership(ctx context.Context, membershipID string, request *UpdateMembershipRequest) (*OrganizationMembership, error) {
@@ -419,7 +430,7 @@ func (c *organizationClientImpl) GetProjectMembership(ctx context.Context, proje
 		}
 	}
 
-	return nil, fmt.Errorf("cannot find project membership for user %s in project %s", membershipID, projectID)
+	return nil, fmt.Errorf("%w: user %s in project %s", ErrProjectMembershipNotFound, membershipID, projectID)
 }
 
 func (c *organizationClientImpl) CreateOrUpdateProjectMembership(ctx context.Context, projectID string, request *CreateProjectMembershipRequest) (*ProjectMembership, error) {
@@ -430,7 +441,7 @@ func (c *organizationClientImpl) CreateOrUpdateProjectMembership(ctx context.Con
 
 	var membership ProjectMembership
 	if err := decodeResponse(resp, &membership); err != nil {
-		return nil, fmt.Errorf("failed to decode project membership response: %w", err)
+		return nil, err
 	}
 
 	return &membership, nil
@@ -445,11 +456,13 @@ func (c *organizationClientImpl) DeleteProjectMembership(ctx context.Context, pr
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("failed to remove project member %s from project %s (status %d)",
-			userID, projectID, resp.StatusCode)
+	var deleteResp deleteProjectMembershipResponse
+	if err := decodeResponse(resp, &deleteResp); err != nil {
+		return err
+	}
+	if !deleteResp.Success {
+		return fmt.Errorf("failed to remove project member %s from project %s: %s", userID, projectID, deleteResp.Message)
 	}
 
 	return nil

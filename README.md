@@ -275,13 +275,13 @@ Manages project membership - adds users to projects and manages their project-le
 
 - `id` (String) - The unique identifier of the project membership
 - `user_id` (String) - The unique identifier of the user
-- `username` (String) - The username of the user
+- `name` (String) - The name of the user
 
 #### Behavior
 
 - **Role Updates**: The role can be updated after creation using Terraform `apply` with the updated role value
 - **Deletion**: When the resource is destroyed, the user is removed from the project (but not from the organization)
-- **Import Format**: `project_id,membership_id,organization_public_key,organization_private_key`
+- **Import Format**: `project_id,user_id,organization_public_key,organization_private_key`
 
 #### Example Usage
 

@@ -2,11 +2,11 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
-	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
@@ -103,17 +103,11 @@ func (r *projectMembershipResource) Schema(ctx context.Context, req resource.Sch
 				Required:    true,
 				Sensitive:   true,
 				Description: "Organization public key to authenticate the call.",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
 			},
 			"organization_private_key": schema.StringAttribute{
 				Required:    true,
 				Sensitive:   true,
 				Description: "Organization private key to authenticate the call.",
-				PlanModifiers: []planmodifier.String{
-					stringplanmodifier.RequiresReplace(),
-				},
 			},
 		},
 	}
@@ -193,7 +187,7 @@ func (r *projectMembershipResource) Read(ctx context.Context, req resource.ReadR
 
 	membership, err := organizationClient.GetProjectMembership(ctx, state.ProjectID.ValueString(), state.ID.ValueString())
 	if err != nil {
-		if strings.Contains(err.Error(), "cannot find project membership") {
+		if errors.Is(err, langfuse.ErrProjectMembershipNotFound) {
 			resp.State.RemoveResource(ctx)
 			return
 		}
@@ -272,7 +266,7 @@ func (r *projectMembershipResource) Delete(ctx context.Context, req resource.Del
 }
 
 func (r *projectMembershipResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	// Import format: project_id,membership_id,organization_public_key,organization_private_key
+	// Import format: project_id,user_id,organization_public_key,organization_private_key
 	// Example: terraform import langfuse_project_membership.example "proj_123,mem_456,pk_789,sk_012"
 
 	importParts := strings.Split(req.ID, ",")
@@ -305,6 +299,4 @@ func (r *projectMembershipResource) ImportState(ctx context.Context, req resourc
 		OrganizationPublicKey:  types.StringValue(organizationPublicKey),
 		OrganizationPrivateKey: types.StringValue(organizationPrivateKey),
 	})...)
-
-	resource.ImportStatePassthroughID(ctx, path.Root("id"), resource.ImportStateRequest{ID: membership.UserID}, resp)
 }

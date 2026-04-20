@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 
@@ -119,7 +120,7 @@ func (r *organizationMembershipResource) Create(ctx context.Context, req resourc
 	}
 
 	// Validate role is one of the allowed values
-	validRoles := []string{"OWNER","ADMIN", "MEMBER", "VIEWER","NONE"}
+	validRoles := []string{"OWNER", "ADMIN", "MEMBER", "VIEWER", "NONE"}
 	role := plan.Role.ValueString()
 	isValidRole := false
 	for _, validRole := range validRoles {
@@ -268,7 +269,7 @@ func (r *organizationMembershipResource) Read(ctx context.Context, req resource.
 
 	membership, err := organizationClient.GetMembership(ctx, state.ID.ValueString())
 	if err != nil {
-		if strings.Contains(err.Error(), "cannot find membership") {
+		if errors.Is(err, langfuse.ErrMembershipNotFound) {
 			resp.State.RemoveResource(ctx)
 			return
 		}
@@ -306,7 +307,7 @@ func (r *organizationMembershipResource) Update(ctx context.Context, req resourc
 	}
 
 	// Validate role is one of the allowed values
-	validRoles := []string{"OWNER", "ADMIN", "MEMBER", "VIEWER","NONE"}
+	validRoles := []string{"OWNER", "ADMIN", "MEMBER", "VIEWER", "NONE"}
 	role := plan.Role.ValueString()
 	isValidRole := false
 	for _, validRole := range validRoles {
