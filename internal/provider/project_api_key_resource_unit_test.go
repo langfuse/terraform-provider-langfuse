@@ -104,13 +104,14 @@ func TestProjectApiKeyResourceCRUD(t *testing.T) {
 
 	var createResp resource.CreateResponse
 	t.Run("Create", func(t *testing.T) {
-		clientFactory.OrganizationClient.EXPECT().CreateProjectApiKey(ctx, projectID).Return(&langfuse.ProjectApiKey{ID: projectApiKeyID, PublicKey: publicKey, SecretKey: privateKey}, nil)
+		clientFactory.OrganizationClient.EXPECT().CreateProjectApiKey(ctx, projectID, nil).Return(&langfuse.ProjectApiKey{ID: projectApiKeyID, PublicKey: publicKey, SecretKey: privateKey}, nil)
 
 		createConfig := tfsdk.Config{Raw: buildApiKeyObjectValue(map[string]tftypes.Value{
 			"id":                       tftypes.NewValue(tftypes.String, nil),
 			"project_id":               tftypes.NewValue(tftypes.String, projectID),
 			"organization_public_key":  tftypes.NewValue(tftypes.String, publicKey),
 			"organization_private_key": tftypes.NewValue(tftypes.String, privateKey),
+			"note":                     tftypes.NewValue(tftypes.String, nil),
 			"public_key":               tftypes.NewValue(tftypes.String, nil),
 			"secret_key":               tftypes.NewValue(tftypes.String, nil),
 		}), Schema: resourceSchema}
@@ -153,11 +154,13 @@ func buildApiKeyObjectValue(values map[string]tftypes.Value) tftypes.Value {
 				"organization_public_key":  tftypes.String,
 				"organization_private_key": tftypes.String,
 				"project_id":               tftypes.String,
+				"note":                     tftypes.String,
 				"public_key":               tftypes.String,
 				"secret_key":               tftypes.String,
 			},
 			OptionalAttributes: map[string]struct{}{
 				"id":         {},
+				"note":       {},
 				"public_key": {},
 				"secret_key": {},
 			},

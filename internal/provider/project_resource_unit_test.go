@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -14,6 +15,7 @@ import (
 
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	resschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
 )
@@ -60,6 +62,12 @@ func TestProjectResourceSchema(t *testing.T) {
 	if !idAttr.Computed {
 		t.Fatalf("'id' attribute must be Computed=true")
 	}
+	if len(idAttr.PlanModifiers) != 1 {
+		t.Fatalf("'id' attribute must have exactly one plan modifier, got %d", len(idAttr.PlanModifiers))
+	}
+	if reflect.TypeOf(idAttr.PlanModifiers[0]) != reflect.TypeOf(stringplanmodifier.UseStateForUnknown()) {
+		t.Fatalf("'id' attribute must use UseStateForUnknown plan modifier")
+	}
 
 	nameAttrRaw, ok := schemaResp.Schema.Attributes["name"]
 	if !ok {
@@ -71,6 +79,21 @@ func TestProjectResourceSchema(t *testing.T) {
 	}
 	if !nameAttr.Required {
 		t.Fatalf("'name' attribute must be Required=true")
+	}
+
+	orgIDAttrRaw, ok := schemaResp.Schema.Attributes["organization_id"]
+	if !ok {
+		t.Fatalf("schema is missing mandatory 'organization_id' attribute")
+	}
+	orgIDAttr, ok := orgIDAttrRaw.(resschema.StringAttribute)
+	if !ok {
+		t.Fatalf("'organization_id' attribute is not a string attribute as expected")
+	}
+	if len(orgIDAttr.PlanModifiers) != 1 {
+		t.Fatalf("'organization_id' must have exactly one plan modifier, got %d", len(orgIDAttr.PlanModifiers))
+	}
+	if reflect.TypeOf(orgIDAttr.PlanModifiers[0]) != reflect.TypeOf(stringplanmodifier.RequiresReplace()) {
+		t.Fatalf("'organization_id' plan modifier must be RequiresReplace")
 	}
 }
 

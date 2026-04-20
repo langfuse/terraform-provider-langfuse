@@ -66,18 +66,18 @@ func (mr *MockOrganizationClientMockRecorder) CreateProject(arg0, arg1 interface
 }
 
 // CreateProjectApiKey mocks base method.
-func (m *MockOrganizationClient) CreateProjectApiKey(arg0 context.Context, arg1 string) (*langfuse.ProjectApiKey, error) {
+func (m *MockOrganizationClient) CreateProjectApiKey(arg0 context.Context, arg1 string, arg2 *langfuse.CreateProjectApiKeyRequest) (*langfuse.ProjectApiKey, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateProjectApiKey", arg0, arg1)
+	ret := m.ctrl.Call(m, "CreateProjectApiKey", arg0, arg1, arg2)
 	ret0, _ := ret[0].(*langfuse.ProjectApiKey)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CreateProjectApiKey indicates an expected call of CreateProjectApiKey.
-func (mr *MockOrganizationClientMockRecorder) CreateProjectApiKey(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockOrganizationClientMockRecorder) CreateProjectApiKey(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateProjectApiKey", reflect.TypeOf((*MockOrganizationClient)(nil).CreateProjectApiKey), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateProjectApiKey", reflect.TypeOf((*MockOrganizationClient)(nil).CreateProjectApiKey), arg0, arg1, arg2)
 }
 
 // CreateSCIMUser mocks base method.

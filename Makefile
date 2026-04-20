@@ -26,3 +26,8 @@ test-teardown:
 # Generate mocks
 generate:
 	go generate ./...
+
+docs:
+	cd tools; go generate ./...
+
+.PHONY: docs
