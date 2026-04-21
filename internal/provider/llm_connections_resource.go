@@ -70,11 +70,11 @@ func (r *llmConnectionsResource) Metadata(ctx context.Context, req resource.Meta
 
 func (r *llmConnectionsResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
-		Description: "Manages an LLM connection in a Langfuse project. Note: the Langfuse API does not provide a delete endpoint for LLM connections. Destroying this resource only removes it from Terraform state; the connection will remain in Langfuse.",
+		Description: "Manages an LLM connection in a Langfuse project.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed:    true,
-				Description: "The unique identifier of the LLM connection (set to the provider value).",
+				Description: "The unique identifier (UUID) of the LLM connection.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
@@ -222,7 +222,7 @@ func (r *llmConnectionsResource) ConfigValidators(ctx context.Context) []resourc
 // preserving write-only fields (secretKey, extraHeaders) from the provided prior state.
 func mapResponseToState(conn *langfuse.LlmConnection, secretKey types.String, extraHeaders types.Map, projectPublicKey, projectSecretKey types.String) (llmConnectionsResourceModel, error) {
 	state := llmConnectionsResourceModel{
-		ID:                types.StringValue(conn.Provider),
+		ID:                types.StringValue(conn.ID),
 		ProviderName:      types.StringValue(conn.Provider),
 		Adapter:           types.StringValue(conn.Adapter),
 		WithDefaultModels: types.BoolValue(conn.WithDefaultModels),
@@ -414,5 +414,18 @@ func (r *llmConnectionsResource) Update(ctx context.Context, req resource.Update
 }
 
 func (r *llmConnectionsResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {
-	tflog.Info(ctx, "LLM connection removed from Terraform state. The connection remains in Langfuse but is no longer managed by Terraform.")
+	var state llmConnectionsResourceModel
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	client := r.ClientFactory.NewLlmConnectionsClient(state.ProjectPublicKey.ValueString(), state.ProjectSecretKey.ValueString())
+
+	if err := client.DeleteLlmConnection(ctx, state.ID.ValueString()); err != nil {
+		resp.Diagnostics.AddError("Error deleting LLM connection", err.Error())
+		return
+	}
+
+	tflog.Info(ctx, "LLM connection deleted", map[string]any{"id": state.ID.ValueString()})
 }

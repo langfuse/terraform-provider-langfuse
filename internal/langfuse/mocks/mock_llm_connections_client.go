@@ -35,6 +35,20 @@ func (m *MockLlmConnectionsClient) EXPECT() *MockLlmConnectionsClientMockRecorde
 	return m.recorder
 }
 
+// DeleteLlmConnection mocks base method.
+func (m *MockLlmConnectionsClient) DeleteLlmConnection(arg0 context.Context, arg1 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteLlmConnection", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteLlmConnection indicates an expected call of DeleteLlmConnection.
+func (mr *MockLlmConnectionsClientMockRecorder) DeleteLlmConnection(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteLlmConnection", reflect.TypeOf((*MockLlmConnectionsClient)(nil).DeleteLlmConnection), arg0, arg1)
+}
+
 // ListLlmConnections mocks base method.
 func (m *MockLlmConnectionsClient) ListLlmConnections(arg0 context.Context, arg1, arg2 *int) (*langfuse.ListLlmConnectionsResponse, error) {
 	m.ctrl.T.Helper()

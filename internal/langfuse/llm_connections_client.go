@@ -46,9 +46,14 @@ type PaginationMeta struct {
 	TotalPages int `json:"totalPages"`
 }
 
+type deleteLlmConnectionResponse struct {
+	Message string `json:"message"`
+}
+
 type LlmConnectionsClient interface {
 	ListLlmConnections(ctx context.Context, page, limit *int) (*ListLlmConnectionsResponse, error)
 	UpsertLlmConnection(ctx context.Context, req *UpsertLlmConnectionRequest) (*LlmConnection, error)
+	DeleteLlmConnection(ctx context.Context, id string) error
 }
 
 type llmConnectionsClientImpl struct {
@@ -132,4 +137,18 @@ func (c *llmConnectionsClientImpl) UpsertLlmConnection(ctx context.Context, req 
 	}
 
 	return &connection, nil
+}
+
+func (c *llmConnectionsClientImpl) DeleteLlmConnection(ctx context.Context, id string) error {
+	resp, err := c.makeRequest(ctx, http.MethodDelete, fmt.Sprintf("api/public/llm-connections/%s", id), nil)
+	if err != nil {
+		return err
+	}
+
+	var deleteResp deleteLlmConnectionResponse
+	if err := decodeResponse(resp, &deleteResp); err != nil {
+		return err
+	}
+
+	return nil
 }

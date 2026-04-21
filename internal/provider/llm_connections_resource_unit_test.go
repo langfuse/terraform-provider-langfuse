@@ -153,8 +153,8 @@ func TestLlmConnectionsResource_Create(t *testing.T) {
 	if model.Adapter.ValueString() != "openai" {
 		t.Errorf("expected adapter %q, got %q", "openai", model.Adapter.ValueString())
 	}
-	if model.ID.ValueString() != "openai-prod" {
-		t.Errorf("expected id %q, got %q", "openai-prod", model.ID.ValueString())
+	if model.ID.ValueString() != "conn-123" {
+		t.Errorf("expected id %q, got %q", "conn-123", model.ID.ValueString())
 	}
 	// secret_key must be preserved from plan, not overwritten by API response
 	if model.SecretKey.ValueString() != "my-api-key" {
@@ -206,19 +206,23 @@ func TestLlmConnectionsResource_Read_NotFound(t *testing.T) {
 	}
 }
 
-// TestLlmConnectionsResource_Delete_NoApiCall verifies that Delete does not call
-// any client method — it is state-only.
-func TestLlmConnectionsResource_Delete_NoApiCall(t *testing.T) {
+// TestLlmConnectionsResource_Delete verifies that Delete calls DeleteLlmConnection
+// with the connection UUID stored in state.
+func TestLlmConnectionsResource_Delete(t *testing.T) {
 	t.Parallel()
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
 	ctx := context.Background()
-	// No mock expectations set — gomock will fail if any method is called.
-	r, _, resourceSchema := setupLlmConnectionResource(t, ctrl)
+	r, llmClient, resourceSchema := setupLlmConnectionResource(t, ctrl)
+
+	llmClient.EXPECT().
+		DeleteLlmConnection(ctx, "conn-123").
+		Return(nil)
+
 	state := tfsdk.State{
-		Raw:    buildLlmConnectionStateValue("openai-prod", "pk-test", "sk-test", "openai-prod", "openai", "my-api-key", nil),
+		Raw:    buildLlmConnectionStateValue("conn-123", "pk-test", "sk-test", "openai-prod", "openai", "my-api-key", nil),
 		Schema: resourceSchema,
 	}
 

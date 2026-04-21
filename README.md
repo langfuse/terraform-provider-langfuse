@@ -320,7 +320,7 @@ resource "langfuse_project_membership" "team" {
 
 ### `langfuse_llm_connection`
 
-Manages LLM API connections for a Langfuse project. Supports OpenAI, Bedrock, Azure, Google Vertex AI, and custom providers. Each connection is uniquely identified by its `provider` name. Connections are upserted (created or updated) via the provider name; destroying the resource only removes it from Terraform state (the connection remains in Langfuse).
+Manages LLM API connections for a Langfuse project. Supports OpenAI, Bedrock, Azure, Google Vertex AI, and custom providers. Each connection is uniquely identified by its `provider` name. Connections are upserted (created or updated) via the provider name; destroying the resource deletes the connection from Langfuse.
 
 #### Arguments
 
@@ -337,7 +337,7 @@ Manages LLM API connections for a Langfuse project. Supports OpenAI, Bedrock, Az
 
 #### Attributes
 
-- `id` (String) - The unique identifier of the LLM connection (set to the provider value)
+- `id` (String) - The unique identifier (UUID) of the LLM connection
 - `adapter` (String) - The LLM adapter type
 - `provider_name` (String) - The provider name
 - `base_url` (String) - The base URL used
@@ -350,7 +350,7 @@ Manages LLM API connections for a Langfuse project. Supports OpenAI, Bedrock, Az
 #### Behavior
 
 - **Upsert Semantics**: Creating or updating this resource always upserts the connection in Langfuse by provider name. Changing `provider` destroys and recreates the resource.
-- **No Delete Endpoint**: Destroying the resource only removes it from Terraform state; the connection remains in Langfuse.
+- **Delete**: Destroying the resource calls `DELETE /api/public/llm-connections/{id}` and removes the connection from Langfuse.
 - **Write-only Fields**: Sensitive fields like `secret_key` and `extra_headers` are preserved from the plan/state and not returned by the API.
 - **Config Validation**: Adapter-specific config requirements are enforced:
   - **Bedrock**: `config` must be JSON with a `region` key, e.g. `{ "region": "us-east-1" }`
