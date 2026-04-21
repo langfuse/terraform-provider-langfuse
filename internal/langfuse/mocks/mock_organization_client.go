@@ -35,6 +35,21 @@ func (m *MockOrganizationClient) EXPECT() *MockOrganizationClientMockRecorder {
 	return m.recorder
 }
 
+// CreateOrUpdateProjectMembership mocks base method.
+func (m *MockOrganizationClient) CreateOrUpdateProjectMembership(arg0 context.Context, arg1 string, arg2 *langfuse.CreateProjectMembershipRequest) (*langfuse.ProjectMembership, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateOrUpdateProjectMembership", arg0, arg1, arg2)
+	ret0, _ := ret[0].(*langfuse.ProjectMembership)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateOrUpdateProjectMembership indicates an expected call of CreateOrUpdateProjectMembership.
+func (mr *MockOrganizationClientMockRecorder) CreateOrUpdateProjectMembership(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOrUpdateProjectMembership", reflect.TypeOf((*MockOrganizationClient)(nil).CreateOrUpdateProjectMembership), arg0, arg1, arg2)
+}
+
 // CreateProject mocks base method.
 func (m *MockOrganizationClient) CreateProject(arg0 context.Context, arg1 *langfuse.CreateProjectRequest) (*langfuse.Project, error) {
 	m.ctrl.T.Helper()
@@ -108,6 +123,20 @@ func (mr *MockOrganizationClientMockRecorder) DeleteProjectApiKey(arg0, arg1, ar
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteProjectApiKey", reflect.TypeOf((*MockOrganizationClient)(nil).DeleteProjectApiKey), arg0, arg1, arg2)
 }
 
+// DeleteProjectMembership mocks base method.
+func (m *MockOrganizationClient) DeleteProjectMembership(arg0 context.Context, arg1, arg2 string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteProjectMembership", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteProjectMembership indicates an expected call of DeleteProjectMembership.
+func (mr *MockOrganizationClientMockRecorder) DeleteProjectMembership(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteProjectMembership", reflect.TypeOf((*MockOrganizationClient)(nil).DeleteProjectMembership), arg0, arg1, arg2)
+}
+
 // GetMembership mocks base method.
 func (m *MockOrganizationClient) GetMembership(arg0 context.Context, arg1 string) (*langfuse.OrganizationMembership, error) {
 	m.ctrl.T.Helper()
@@ -153,6 +182,21 @@ func (mr *MockOrganizationClientMockRecorder) GetProjectApiKey(arg0, arg1, arg2 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProjectApiKey", reflect.TypeOf((*MockOrganizationClient)(nil).GetProjectApiKey), arg0, arg1, arg2)
 }
 
+// GetProjectMembership mocks base method.
+func (m *MockOrganizationClient) GetProjectMembership(arg0 context.Context, arg1, arg2 string) (*langfuse.ProjectMembership, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetProjectMembership", arg0, arg1, arg2)
+	ret0, _ := ret[0].(*langfuse.ProjectMembership)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetProjectMembership indicates an expected call of GetProjectMembership.
+func (mr *MockOrganizationClientMockRecorder) GetProjectMembership(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetProjectMembership", reflect.TypeOf((*MockOrganizationClient)(nil).GetProjectMembership), arg0, arg1, arg2)
+}
+
 // ListMemberships mocks base method.
 func (m *MockOrganizationClient) ListMemberships(arg0 context.Context) ([]langfuse.OrganizationMembership, error) {
 	m.ctrl.T.Helper()
@@ -166,6 +210,21 @@ func (m *MockOrganizationClient) ListMemberships(arg0 context.Context) ([]langfu
 func (mr *MockOrganizationClientMockRecorder) ListMemberships(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListMemberships", reflect.TypeOf((*MockOrganizationClient)(nil).ListMemberships), arg0)
+}
+
+// ListProjectMemberships mocks base method.
+func (m *MockOrganizationClient) ListProjectMemberships(arg0 context.Context, arg1 string) ([]langfuse.ProjectMembership, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListProjectMemberships", arg0, arg1)
+	ret0, _ := ret[0].([]langfuse.ProjectMembership)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListProjectMemberships indicates an expected call of ListProjectMemberships.
+func (mr *MockOrganizationClientMockRecorder) ListProjectMemberships(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListProjectMemberships", reflect.TypeOf((*MockOrganizationClient)(nil).ListProjectMemberships), arg0, arg1)
 }
 
 // ListProjects mocks base method.

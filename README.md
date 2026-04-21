@@ -259,6 +259,67 @@ resource "langfuse_organization_membership" "team" {
 }
 ```
 
+### `langfuse_project_membership`
+
+Manages project membership - adds users to projects and manages their project-level roles. Users must already exist in the organization before being added to a project.
+
+#### Arguments
+
+- `project_id` (String, Required, ForceNew) - The ID of the project to add the user to
+- `email` (String, Required, ForceNew) - The email address of the user to add to the project
+- `role` (String, Required) - The role to assign to the user. Valid values: `OWNER`, `ADMIN`, `MEMBER`, `VIEWER` or `NONE`
+- `organization_public_key` (String, Required, Sensitive, ForceNew) - Organization public key for authentication
+- `organization_private_key` (String, Required, Sensitive, ForceNew) - Organization private key for authentication
+
+#### Attributes
+
+- `id` (String) - The unique identifier of the project membership
+- `user_id` (String) - The unique identifier of the user
+- `name` (String) - The name of the user
+
+#### Behavior
+
+- **Role Updates**: The role can be updated after creation using Terraform `apply` with the updated role value
+- **Deletion**: When the resource is destroyed, the user is removed from the project (but not from the organization)
+- **Import Format**: `project_id,user_id,organization_public_key,organization_private_key`
+
+#### Example Usage
+
+```hcl
+# Add a user to a project as admin
+resource "langfuse_project_membership" "admin" {
+  project_id               = langfuse_project.project.id
+  email                    = "admin@example.com"
+  role                     = "ADMIN"
+  organization_public_key  = langfuse_organization_api_key.org_key.public_key
+  organization_private_key = langfuse_organization_api_key.org_key.secret_key
+}
+
+# Add a user to a project as member
+resource "langfuse_project_membership" "member" {
+  project_id               = langfuse_project.project.id
+  email                    = "member@example.com"
+  role                     = "MEMBER"
+  organization_public_key  = langfuse_organization_api_key.org_key.public_key
+  organization_private_key = langfuse_organization_api_key.org_key.secret_key
+}
+
+# Add multiple users to a project
+resource "langfuse_project_membership" "team" {
+  for_each = toset([
+    "dev1@example.com",
+    "dev2@example.com",
+    "qa@example.com"
+  ])
+
+  project_id               = langfuse_project.project.id
+  email                    = each.value
+  role                     = "MEMBER"
+  organization_public_key  = langfuse_organization_api_key.org_key.public_key
+  organization_private_key = langfuse_organization_api_key.org_key.secret_key
+}
+```
+
 ## Development
 
 ### Setup
