@@ -145,6 +145,11 @@ func (c *llmConnectionsClientImpl) DeleteLlmConnection(ctx context.Context, id s
 		return err
 	}
 
+	if resp.StatusCode == http.StatusNotFound {
+		_ = resp.Body.Close()
+		return nil
+	}
+
 	var deleteResp deleteLlmConnectionResponse
 	if err := decodeResponse(resp, &deleteResp); err != nil {
 		return err
