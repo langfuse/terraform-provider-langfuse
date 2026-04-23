@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
 	"github.com/hashicorp/terraform-plugin-framework/attr"
@@ -20,6 +21,7 @@ import (
 
 var _ resource.Resource = &llmConnectionsResource{}
 var _ resource.ResourceWithConfigValidators = &llmConnectionsResource{}
+var _ resource.ResourceWithImportState = &llmConnectionsResource{}
 
 // llmConnectionsPageSize is the number of results to request per page when listing
 // LLM connections. 100 is the practical maximum to minimise round-trips.
@@ -428,4 +430,63 @@ func (r *llmConnectionsResource) Delete(ctx context.Context, req resource.Delete
 	}
 
 	tflog.Info(ctx, "LLM connection deleted", map[string]any{"id": state.ID.ValueString()})
+}
+
+// ImportState imports an existing LLM connection by its project credentials and connection ID.
+// The import ID format is: <project_public_key>:<project_secret_key>:<connection_id>
+func (r *llmConnectionsResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
+	parts := strings.SplitN(req.ID, ":", 3)
+	if len(parts) != 3 || parts[0] == "" || parts[1] == "" || parts[2] == "" {
+		resp.Diagnostics.AddError(
+			"Invalid import ID",
+			"Import ID must be in the format: <project_public_key>:<project_secret_key>:<connection_id>",
+		)
+		return
+	}
+	projectPublicKey, projectSecretKey, connectionID := parts[0], parts[1], parts[2]
+
+	client := r.ClientFactory.NewLlmConnectionsClient(projectPublicKey, projectSecretKey)
+
+	var found *langfuse.LlmConnection
+	page := 1
+	pageSize := llmConnectionsPageSize
+	for {
+		listResp, err := client.ListLlmConnections(ctx, &page, &pageSize)
+		if err != nil {
+			resp.Diagnostics.AddError("Error listing LLM connections during import", err.Error())
+			return
+		}
+		for i := range listResp.Data {
+			if listResp.Data[i].ID == connectionID {
+				found = &listResp.Data[i]
+				break
+			}
+		}
+		if found != nil || page >= listResp.Meta.TotalPages {
+			break
+		}
+		page++
+	}
+
+	if found == nil {
+		resp.Diagnostics.AddError(
+			"LLM connection not found",
+			fmt.Sprintf("No LLM connection with ID %q was found for the given project credentials.", connectionID),
+		)
+		return
+	}
+
+	state, err := mapResponseToState(
+		found,
+		types.StringNull(),
+		types.MapNull(types.StringType),
+		types.StringValue(projectPublicKey),
+		types.StringValue(projectSecretKey),
+	)
+	if err != nil {
+		resp.Diagnostics.AddError("Error mapping LLM connection response", err.Error())
+		return
+	}
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
 }

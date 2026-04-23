@@ -8,7 +8,6 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	resschema "github.com/hashicorp/terraform-plugin-framework/resource/schema"
-	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
@@ -804,7 +803,7 @@ func TestLlmConnectionsResource_ProviderFieldRequiresReplace(t *testing.T) {
 	for _, pm := range strAttr.PlanModifiers {
 		// stringplanmodifier.RequiresReplace() returns a modifier whose
 		// Description is "RequiresReplace".
-		desc := pm.(planmodifier.String).Description(ctx)
+		desc := pm.Description(ctx)
 		if desc == stringplanmodifier.RequiresReplace().Description(ctx) {
 			found = true
 			break
@@ -815,4 +814,115 @@ func TestLlmConnectionsResource_ProviderFieldRequiresReplace(t *testing.T) {
 	if !found {
 		t.Error("expected \"provider_name\" attribute to have RequiresReplace plan modifier, but it was not found")
 	}
+}
+
+func TestLlmConnectionsResource_ImportState(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	t.Run("success", func(t *testing.T) {
+		t.Parallel()
+
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		r, llmClient, resourceSchema := setupLlmConnectionResource(t, ctrl)
+
+		llmClient.EXPECT().
+			ListLlmConnections(ctx, gomock.Any(), gomock.Any()).
+			Return(&langfuse.ListLlmConnectionsResponse{
+				Data: []langfuse.LlmConnection{
+					{
+						ID:                "conn-123",
+						Provider:          "openai-prod",
+						Adapter:           "openai",
+						WithDefaultModels: true,
+					},
+				},
+				Meta: langfuse.PaginationMeta{Page: 1, Limit: 100, TotalItems: 1, TotalPages: 1},
+			}, nil)
+
+		var importResp resource.ImportStateResponse
+		importResp.State.Schema = resourceSchema
+
+		r.ImportState(ctx, resource.ImportStateRequest{ID: "pk-test:sk-test:conn-123"}, &importResp)
+
+		if importResp.Diagnostics.HasError() {
+			t.Fatalf("unexpected diagnostics from ImportState: %v", importResp.Diagnostics)
+		}
+
+		var model llmConnectionsResourceModel
+		if diags := importResp.State.Get(ctx, &model); diags.HasError() {
+			t.Fatalf("unexpected diagnostics getting model from imported state: %v", diags)
+		}
+
+		if model.ID.ValueString() != "conn-123" {
+			t.Errorf("expected id %q, got %q", "conn-123", model.ID.ValueString())
+		}
+		if model.ProviderName.ValueString() != "openai-prod" {
+			t.Errorf("expected provider_name %q, got %q", "openai-prod", model.ProviderName.ValueString())
+		}
+		if model.Adapter.ValueString() != "openai" {
+			t.Errorf("expected adapter %q, got %q", "openai", model.Adapter.ValueString())
+		}
+		if model.ProjectPublicKey.ValueString() != "pk-test" {
+			t.Errorf("expected project_public_key %q, got %q", "pk-test", model.ProjectPublicKey.ValueString())
+		}
+		if model.ProjectSecretKey.ValueString() != "sk-test" {
+			t.Errorf("expected project_secret_key %q, got %q", "sk-test", model.ProjectSecretKey.ValueString())
+		}
+		// sensitive write-only fields must be null after import
+		if !model.SecretKey.IsNull() {
+			t.Errorf("expected secret_key to be null after import, got %q", model.SecretKey.ValueString())
+		}
+		if !model.ExtraHeaders.IsNull() {
+			t.Error("expected extra_headers to be null after import")
+		}
+	})
+
+	t.Run("invalid_import_id", func(t *testing.T) {
+		t.Parallel()
+
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		r, _, resourceSchema := setupLlmConnectionResource(t, ctrl)
+
+		for _, id := range []string{"", "pk-only", "pk:sk"} {
+			var importResp resource.ImportStateResponse
+			importResp.State.Schema = resourceSchema
+
+			r.ImportState(ctx, resource.ImportStateRequest{ID: id}, &importResp)
+
+			if !importResp.Diagnostics.HasError() {
+				t.Errorf("expected error for import ID %q, but got none", id)
+			}
+		}
+	})
+
+	t.Run("not_found", func(t *testing.T) {
+		t.Parallel()
+
+		ctrl := gomock.NewController(t)
+		defer ctrl.Finish()
+
+		r, llmClient, resourceSchema := setupLlmConnectionResource(t, ctrl)
+
+		llmClient.EXPECT().
+			ListLlmConnections(ctx, gomock.Any(), gomock.Any()).
+			Return(&langfuse.ListLlmConnectionsResponse{
+				Data: []langfuse.LlmConnection{},
+				Meta: langfuse.PaginationMeta{Page: 1, Limit: 100, TotalItems: 0, TotalPages: 1},
+			}, nil)
+
+		var importResp resource.ImportStateResponse
+		importResp.State.Schema = resourceSchema
+
+		r.ImportState(ctx, resource.ImportStateRequest{ID: "pk-test:sk-test:nonexistent-id"}, &importResp)
+
+		if !importResp.Diagnostics.HasError() {
+			t.Error("expected error when connection not found, but got none")
+		}
+	})
 }
