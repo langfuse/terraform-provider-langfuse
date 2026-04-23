@@ -365,7 +365,7 @@ Manages LLM API connections for a Langfuse project. Supports OpenAI, Bedrock, Az
 resource "langfuse_llm_connection" "openai_prod" {
   project_public_key  = "your-project-public-key"
   project_secret_key  = "your-project-secret-key"
-  provider            = "openai-prod"
+  provider_name       = "openai-prod"
   adapter             = "openai"
   secret_key          = "sk-..."
   with_default_models = true
@@ -375,7 +375,7 @@ resource "langfuse_llm_connection" "openai_prod" {
 resource "langfuse_llm_connection" "bedrock_prod" {
   project_public_key  = "your-project-public-key"
   project_secret_key  = "your-project-secret-key"
-  provider            = "bedrock-prod"
+  provider_name       = "bedrock-prod"
   adapter             = "bedrock"
   secret_key          = "AK..."
   base_url            = "https://bedrock.aws.example.com"
@@ -388,7 +388,7 @@ resource "langfuse_llm_connection" "bedrock_prod" {
 resource "langfuse_llm_connection" "vertex_ai_prod" {
   project_public_key  = "your-project-public-key"
   project_secret_key  = "your-project-secret-key"
-  provider            = "vertex-ai-prod"
+  provider_name       = "vertex-ai-prod"
   adapter             = "google-vertex-ai"
   secret_key          = "vertex-key"
   config              = jsonencode({ location = "us-central1" })
@@ -399,7 +399,7 @@ resource "langfuse_llm_connection" "vertex_ai_prod" {
 resource "langfuse_llm_connection" "azure_prod" {
   project_public_key  = "your-project-public-key"
   project_secret_key  = "your-project-secret-key"
-  provider            = "azure-prod"
+  provider_name       = "azure-prod"
   adapter             = "azure"
   secret_key          = "azure-key"
   with_default_models = true
@@ -409,7 +409,7 @@ resource "langfuse_llm_connection" "azure_prod" {
 resource "langfuse_llm_connection" "my_gateway" {
   project_public_key  = "your-project-public-key"
   project_secret_key  = "your-project-secret-key"
-  provider            = "my-gateway"
+  provider_name       = "my-gateway"
   adapter             = "openai"
   secret_key          = "sk-custom"
   extra_headers       = {
