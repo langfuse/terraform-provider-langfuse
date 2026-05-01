@@ -348,6 +348,11 @@ func (r *llmConnectionsResource) Read(ctx context.Context, req resource.ReadRequ
 		return
 	}
 
+	if r.ClientFactory == nil {
+		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+		return
+	}
+
 	client := r.ClientFactory.NewLlmConnectionsClient(state.ProjectPublicKey.ValueString(), state.ProjectSecretKey.ValueString())
 
 	var found *langfuse.LlmConnection

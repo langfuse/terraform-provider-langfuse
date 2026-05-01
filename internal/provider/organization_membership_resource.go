@@ -265,6 +265,11 @@ func (r *organizationMembershipResource) Read(ctx context.Context, req resource.
 		return
 	}
 
+	if r.ClientFactory == nil {
+		resp.Diagnostics.Append(resp.State.Set(ctx, &state)...)
+		return
+	}
+
 	organizationClient := r.ClientFactory.NewOrganizationClient(state.OrganizationPublicKey.ValueString(), state.OrganizationPrivateKey.ValueString())
 
 	membership, err := organizationClient.GetMembership(ctx, state.ID.ValueString())

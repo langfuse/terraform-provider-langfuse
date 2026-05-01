@@ -62,7 +62,7 @@ func (r *projectResource) Schema(ctx context.Context, req resource.SchemaRequest
 			},
 			"retention_days": schema.Int32Attribute{
 				Optional:    true,
-                Computed: true,
+				Computed:    true,
 				Description: "The retention period for the project in days. If not set, or set with a value of 0, data will be stored indefinitely.",
 			},
 			"metadata": schema.MapAttribute{
@@ -152,6 +152,11 @@ func (r *projectResource) Read(ctx context.Context, req resource.ReadRequest, re
 	resp.Diagnostics.Append(req.State.Get(ctx, &data)...)
 
 	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	if r.ClientFactory == nil {
+		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 		return
 	}
 

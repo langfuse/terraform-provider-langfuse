@@ -135,6 +135,11 @@ func (r *projectApiKeyResource) Read(ctx context.Context, req resource.ReadReque
 		return
 	}
 
+	if r.ClientFactory == nil {
+		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+		return
+	}
+
 	organizationClient := r.ClientFactory.NewOrganizationClient(data.OrganizationPublicKey.ValueString(), data.OrganizationPrivateKey.ValueString())
 	key, err := organizationClient.GetProjectApiKey(ctx, data.ProjectID.ValueString(), data.ID.ValueString())
 	if err != nil {

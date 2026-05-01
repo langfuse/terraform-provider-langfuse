@@ -107,6 +107,11 @@ func (r *organizationApiKeyResource) Read(ctx context.Context, req resource.Read
 		return
 	}
 
+	if r.AdminClient == nil {
+		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+		return
+	}
+
 	_, err := r.AdminClient.GetOrganizationApiKey(ctx, data.OrganizationID.ValueString(), data.ID.ValueString())
 	if err != nil {
 		resp.State.RemoveResource(ctx)
