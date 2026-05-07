@@ -276,6 +276,12 @@ func TestLlmConnectionsResource_ConfigValidator(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "bedrock_unknown_config",
+			adapter:     "bedrock",
+			config:      tftypes.NewValue(tftypes.String, tftypes.UnknownValue),
+			expectError: false,
+		},
+		{
 			name:         "google_vertex_ai_missing_location",
 			adapter:      "google-vertex-ai",
 			config:       tftypes.NewValue(tftypes.String, `{"zone":"us-central1"}`),
