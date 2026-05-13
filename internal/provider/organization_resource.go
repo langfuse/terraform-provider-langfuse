@@ -117,6 +117,11 @@ func (r *organizationResource) Read(ctx context.Context, req resource.ReadReques
 		return
 	}
 
+	if r.AdminClient == nil {
+		resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
+		return
+	}
+
 	org, err := r.AdminClient.GetOrganization(ctx, data.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading organization", err.Error())

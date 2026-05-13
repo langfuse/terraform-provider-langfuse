@@ -52,13 +52,17 @@ func (p *langfuseProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
+	if config.Host.IsUnknown() || config.AdminAPIKey.IsUnknown() {
+		return
+	}
+
 	host := "https://app.langfuse.com"
-	if !config.Host.IsNull() && !config.Host.IsUnknown() && config.Host.ValueString() != "" {
+	if !config.Host.IsNull() && config.Host.ValueString() != "" {
 		host = config.Host.ValueString()
 	}
 
 	apiKey := os.Getenv("LANGFUSE_ADMIN_KEY")
-	if !config.AdminAPIKey.IsNull() && !config.AdminAPIKey.IsUnknown() && config.AdminAPIKey.ValueString() != "" {
+	if !config.AdminAPIKey.IsNull() && config.AdminAPIKey.ValueString() != "" {
 		apiKey = config.AdminAPIKey.ValueString()
 	}
 
