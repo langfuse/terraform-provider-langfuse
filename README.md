@@ -139,6 +139,37 @@ output "project_secret_key" {
 }
 ```
 
+## Data Sources
+
+### `langfuse_organization`
+
+Reads an existing Langfuse organization by its ID or name. Exactly one of `id` or `name` must be specified.
+
+#### Arguments
+
+- `id` (String, Optional) - The unique identifier of the organization. Exactly one of `id` or `name` must be specified.
+- `name` (String, Optional) - The display name of the organization. Exactly one of `id` or `name` must be specified.
+
+#### Attributes
+
+- `id` (String) - The unique identifier of the organization
+- `name` (String) - The display name of the organization
+- `metadata` (Map of String) - Metadata for the organization as key-value pairs
+
+#### Example Usage
+
+```hcl
+# Look up by ID
+data "langfuse_organization" "by_id" {
+  id = "org-123"
+}
+
+# Look up by name
+data "langfuse_organization" "by_name" {
+  name = "My Organization"
+}
+```
+
 ## Resources
 
 ### `langfuse_organization`
