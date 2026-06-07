@@ -471,7 +471,8 @@ func (c *organizationClientImpl) DeleteProjectMembership(ctx context.Context, pr
 	if err := decodeResponse(resp, &deleteResp); err != nil {
 		return err
 	}
-	if !deleteResp.Success {
+	// API returns success: false but with a success message, so we check the message too
+	if !deleteResp.Success && !strings.Contains(strings.ToLower(deleteResp.Message), "deleted") && !strings.Contains(strings.ToLower(deleteResp.Message), "removed") {
 		return fmt.Errorf("failed to remove project member %s from project %s: %s", userID, projectID, deleteResp.Message)
 	}
 
