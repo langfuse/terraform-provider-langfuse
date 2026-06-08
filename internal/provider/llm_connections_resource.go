@@ -166,7 +166,10 @@ func (v llmConnectionConfigValidator) ValidateResource(ctx context.Context, req 
 
 	switch adapter {
 	case "bedrock":
-		if configStr.IsNull() || configStr.IsUnknown() || configStr.ValueString() == "" {
+		if configStr.IsUnknown() {
+			return
+		}
+		if configStr.IsNull() || configStr.ValueString() == "" {
 			resp.Diagnostics.AddError(
 				"Config required for bedrock adapter",
 				"The bedrock adapter requires a config JSON string containing a \"region\" key.",
