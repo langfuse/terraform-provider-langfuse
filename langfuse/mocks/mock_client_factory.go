@@ -2,7 +2,7 @@ package mocks
 
 import (
 	gomock "github.com/golang/mock/gomock"
-	langfuse "github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
+	langfuse "github.com/langfuse/terraform-provider-langfuse/langfuse"
 )
 
 type mockClientFactory struct {

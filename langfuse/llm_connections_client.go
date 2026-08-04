@@ -7,7 +7,7 @@ import (
 	"net/url"
 )
 
-//go:generate mockgen -destination=./mocks/mock_llm_connections_client.go -package=mocks github.com/langfuse/terraform-provider-langfuse/internal/langfuse LlmConnectionsClient
+//go:generate mockgen -destination=./mocks/mock_llm_connections_client.go -package=mocks github.com/langfuse/terraform-provider-langfuse/langfuse LlmConnectionsClient
 
 type LlmConnection struct {
 	ID                string         `json:"id"`

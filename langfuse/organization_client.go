@@ -131,7 +131,7 @@ type listProjectMembershipsResponse struct {
 	Memberships []ProjectMembership `json:"memberships"`
 }
 
-//go:generate mockgen -destination=./mocks/mock_organization_client.go -package=mocks github.com/langfuse/terraform-provider-langfuse/internal/langfuse OrganizationClient
+//go:generate mockgen -destination=./mocks/mock_organization_client.go -package=mocks github.com/langfuse/terraform-provider-langfuse/langfuse OrganizationClient
 
 type OrganizationClient interface {
 	ListProjects(ctx context.Context) ([]*Project, error)
