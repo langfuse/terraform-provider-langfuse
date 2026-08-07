@@ -12,8 +12,8 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-go/tftypes"
-	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
-	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse/mocks"
+	"github.com/langfuse/terraform-provider-langfuse/langfuse"
+	"github.com/langfuse/terraform-provider-langfuse/langfuse/mocks"
 )
 
 func TestProjectMembershipResourceMetadata(t *testing.T) {

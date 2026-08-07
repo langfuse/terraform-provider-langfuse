@@ -16,7 +16,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-log/tflog"
-	"github.com/langfuse/terraform-provider-langfuse/internal/langfuse"
+	"github.com/langfuse/terraform-provider-langfuse/langfuse"
 )
 
 var _ resource.Resource = &llmConnectionsResource{}

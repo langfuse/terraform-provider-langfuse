@@ -83,7 +83,7 @@ make test-setup
 
 # 2. Run acceptance tests
 TF_ACC=1 LANGFUSE_HOST=http://localhost:3000 LANGFUSE_ADMIN_KEY=test_admin_key \
-  go test ./internal/provider -v -run TestAcc
+  go test ./provider -v -run TestAcc
 
 # 3. Clean up
 make test-teardown
@@ -112,13 +112,13 @@ All services run in Docker containers with health checks to ensure they're ready
 ## Test Structure
 
 ### Unit Tests
-- Located in `internal/provider/*_unit_test.go` files
+- Located in `provider/*_unit_test.go` files
 - Use gomock for mocking dependencies  
 - Fast execution, no external dependencies
 - Test individual resource logic in isolation
 
 ### Acceptance Tests  
-- Located in `internal/provider/provider_acceptance_test.go`
+- Located in `provider/provider_acceptance_test.go`
 - Use the `terraform-plugin-testing` framework
 - Test against real Terraform configurations and live Langfuse instance
 - Verify actual resource lifecycle (Create, Read, Update, Delete, Import)
