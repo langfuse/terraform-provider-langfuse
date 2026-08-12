@@ -61,6 +61,23 @@ provider "langfuse" {
 }
 ```
 
+#### Reaching an instance through a tunnel
+
+When a self-hosted instance is only reachable through an SSH tunnel, a
+`kubectl port-forward`, or an AWS SSM session, `host` points at a local port
+that cannot match the certificate the instance serves. Set `tls_server_name` to
+the hostname the certificate is issued for; it is used to verify the
+certificate and sent as the SNI value, while the connection still goes to the
+tunnel. Certificate verification stays enabled.
+
+```hcl
+provider "langfuse" {
+  host            = "https://localhost:8080"
+  tls_server_name = "langfuse.internal.example.com"
+  admin_api_key   = var.admin_api_key
+}
+```
+
 ### Environment Variables
 
 - `LANGFUSE_ADMIN_KEY` - Admin API key (alternative to `admin_api_key`)
