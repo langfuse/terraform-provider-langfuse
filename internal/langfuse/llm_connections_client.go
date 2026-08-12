@@ -63,12 +63,12 @@ type llmConnectionsClientImpl struct {
 	httpClient *http.Client
 }
 
-func NewLlmConnectionsClient(host, publicKey, privateKey string) LlmConnectionsClient {
+func NewLlmConnectionsClient(host, publicKey, privateKey string, httpClient *http.Client) LlmConnectionsClient {
 	return &llmConnectionsClientImpl{
 		host:       host,
 		publicKey:  publicKey,
 		privateKey: privateKey,
-		httpClient: &http.Client{},
+		httpClient: httpClientOrDefault(httpClient),
 	}
 }
 

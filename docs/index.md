@@ -124,3 +124,4 @@ output "project_api_public_key" {
 
 - `admin_api_key` (String, Sensitive) Admin API key. Only needed when managing organizations. Can also come from LANGFUSE_ADMIN_KEY.
 - `host` (String) Base URI of the Langfuse instance (defaults to https://app.langfuse.com).
+- `tls_server_name` (String) Hostname to verify the TLS certificate against, also sent as the SNI value. Set this when the instance is reached through a port forward or tunnel, where the host above (typically localhost) cannot match the certificate. Certificate verification remains enabled.

@@ -19,8 +19,9 @@ type langfuseProvider struct {
 }
 
 type langfuseProviderModel struct {
-	Host        types.String `tfsdk:"host"`
-	AdminAPIKey types.String `tfsdk:"admin_api_key"`
+	Host          types.String `tfsdk:"host"`
+	AdminAPIKey   types.String `tfsdk:"admin_api_key"`
+	TLSServerName types.String `tfsdk:"tls_server_name"`
 }
 
 func (p *langfuseProvider) Metadata(ctx context.Context, req provider.MetadataRequest, resp *provider.MetadataResponse) {
@@ -40,6 +41,10 @@ func (p *langfuseProvider) Schema(ctx context.Context, req provider.SchemaReques
 				Sensitive:   true,
 				Description: "Admin API key. Only needed when managing organizations. Can also come from LANGFUSE_ADMIN_KEY.",
 			},
+			"tls_server_name": schema.StringAttribute{
+				Optional:    true,
+				Description: "Hostname to verify the TLS certificate against, also sent as the SNI value. Set this when the instance is reached through a port forward or tunnel, where the host above (typically localhost) cannot match the certificate. Certificate verification remains enabled.",
+			},
 		},
 	}
 }
@@ -52,7 +57,7 @@ func (p *langfuseProvider) Configure(ctx context.Context, req provider.Configure
 		return
 	}
 
-	if config.Host.IsUnknown() || config.AdminAPIKey.IsUnknown() {
+	if config.Host.IsUnknown() || config.AdminAPIKey.IsUnknown() || config.TLSServerName.IsUnknown() {
 		return
 	}
 
@@ -66,7 +71,7 @@ func (p *langfuseProvider) Configure(ctx context.Context, req provider.Configure
 		apiKey = config.AdminAPIKey.ValueString()
 	}
 
-	clientFactory := langfuse.NewClientFactory(host, apiKey)
+	clientFactory := langfuse.NewClientFactory(host, apiKey, config.TLSServerName.ValueString())
 	resp.DataSourceData = clientFactory
 	resp.ResourceData = clientFactory
 }

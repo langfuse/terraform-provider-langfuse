@@ -63,11 +63,11 @@ type adminClientImpl struct {
 	httpClient *http.Client
 }
 
-func NewAdminClient(host, apiKey string) AdminClient {
+func NewAdminClient(host, apiKey string, httpClient *http.Client) AdminClient {
 	return &adminClientImpl{
 		host:       host,
 		apiKey:     apiKey,
-		httpClient: &http.Client{},
+		httpClient: httpClientOrDefault(httpClient),
 	}
 }
 

@@ -161,12 +161,12 @@ type organizationClientImpl struct {
 	httpClient *http.Client
 }
 
-func NewOrganizationClient(host, publicKey, privateKey string) OrganizationClient {
+func NewOrganizationClient(host, publicKey, privateKey string, httpClient *http.Client) OrganizationClient {
 	return &organizationClientImpl{
 		host:       host,
 		publicKey:  publicKey,
 		privateKey: privateKey,
-		httpClient: &http.Client{},
+		httpClient: httpClientOrDefault(httpClient),
 	}
 }
 
