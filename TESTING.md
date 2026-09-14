@@ -98,7 +98,7 @@ The acceptance tests require these environment variables:
 - `TF_ACC=1` - Enables acceptance testing
 - `LANGFUSE_HOST` - Base URL of the Langfuse instance (default: http://localhost:3000)
 - `LANGFUSE_ADMIN_KEY` - Admin API key for authentication
-- `LANGFUSE_PROJECT_PUBLIC_KEY` / `LANGFUSE_PROJECT_SECRET_KEY` - Project API keys for project-scoped resources (for example LLM connections). `make testacc` passes the keys seeded by `testdata/docker-compose.yml`; tests that need them are skipped when they are unset
+- `LANGFUSE_PROJECT_PUBLIC_KEY` / `LANGFUSE_PROJECT_SECRET_KEY` - Project API keys for project-scoped resources (evaluators, evaluation rules). `make testacc` passes the keys seeded by `testdata/docker-compose.yml`; the evaluator tests are skipped when they are unset
 
 ### Test Infrastructure
 

@@ -89,6 +89,8 @@ func (p *langfuseProvider) Resources(ctx context.Context) []func() resource.Reso
 		NewProjectApiKeyResource,
 		NewProjectMembershipResource,
 		NewLlmConnectionResource,
+		NewEvaluatorResource,
+		NewEvaluationRuleResource,
 	}
 }
 

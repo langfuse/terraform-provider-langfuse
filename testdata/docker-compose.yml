@@ -100,7 +100,8 @@ services:
       LANGFUSE_INIT_PROJECT_NAME: Test Project
       LANGFUSE_INIT_PROJECT_PUBLIC_KEY: pk-lf-terraform-acceptance-test
       LANGFUSE_INIT_PROJECT_SECRET_KEY: sk-lf-terraform-acceptance-test
-      # Enable code evaluators (insecure-local supports TypeScript only); fine for a throwaway test stack.
+      # Enable code evaluators so langfuse_evaluator type=code can be tested.
+      # insecure-local supports TypeScript only and is fine for a throwaway test stack.
       LANGFUSE_CODE_EVAL_DISPATCHER: insecure-local
       # Database
       DATABASE_URL: postgres://langfuse:langfuse@postgres:5432/langfuse?sslmode=disable
