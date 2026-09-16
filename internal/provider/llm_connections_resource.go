@@ -137,8 +137,14 @@ func (r *llmConnectionsResource) Schema(ctx context.Context, req resource.Schema
 				Description: "Whether to include default models. Defaults to true if not set.",
 			},
 			"config": schema.StringAttribute{
-				Optional:    true,
-				Description: "Adapter-specific configuration as a JSON string.",
+				Optional: true,
+				Computed: true,
+				Description: "Adapter-specific configuration as a JSON string. Required for bedrock " +
+					"(`{\"region\": \"<aws-region>\"}`), optional for openai " +
+					"(`{\"useResponsesApi\": <bool>}`) and google-vertex-ai " +
+					"(`{\"location\": \"<gcp-location>\"}`), and unsupported for other adapters. " +
+					"Computed, because the API returns any config the connection holds and offers no " +
+					"way to unset one.",
 			},
 		},
 	}
@@ -205,6 +211,32 @@ func (v llmConnectionConfigValidator) ValidateResource(ctx context.Context, req 
 				resp.Diagnostics.AddError(
 					"Missing \"location\" in google-vertex-ai config",
 					"When config is provided for the google-vertex-ai adapter, it must contain a \"location\" key.",
+				)
+			}
+		}
+
+	case "openai":
+		if !configStr.IsNull() && !configStr.IsUnknown() && configStr.ValueString() != "" {
+			var configMap map[string]any
+			if err := json.Unmarshal([]byte(configStr.ValueString()), &configMap); err != nil {
+				resp.Diagnostics.AddError(
+					"Invalid config JSON for openai adapter",
+					fmt.Sprintf("Failed to parse config as JSON: %s", err.Error()),
+				)
+				return
+			}
+			useResponsesAPI, ok := configMap["useResponsesApi"]
+			if !ok {
+				resp.Diagnostics.AddError(
+					"Missing \"useResponsesApi\" in openai config",
+					"When config is provided for the openai adapter, it must contain a \"useResponsesApi\" key.",
+				)
+				return
+			}
+			if _, ok := useResponsesAPI.(bool); !ok {
+				resp.Diagnostics.AddError(
+					"Invalid \"useResponsesApi\" in openai config",
+					"The openai adapter config value for \"useResponsesApi\" must be a boolean.",
 				)
 			}
 		}

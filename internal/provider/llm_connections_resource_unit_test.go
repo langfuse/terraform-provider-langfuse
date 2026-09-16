@@ -308,17 +308,44 @@ func TestLlmConnectionsResource_ConfigValidator(t *testing.T) {
 			errorSummary: "Invalid config JSON for google-vertex-ai adapter",
 		},
 		{
-			name:         "openai_with_config",
+			name:         "openai_missing_use_responses_api",
 			adapter:      "openai",
 			config:       tftypes.NewValue(tftypes.String, `{"some":"value"}`),
 			expectError:  true,
-			errorSummary: "Config must be null for this adapter",
+			errorSummary: "Missing \"useResponsesApi\" in openai config",
+		},
+		{
+			name:         "openai_use_responses_api_not_bool",
+			adapter:      "openai",
+			config:       tftypes.NewValue(tftypes.String, `{"useResponsesApi":"yes"}`),
+			expectError:  true,
+			errorSummary: "Invalid \"useResponsesApi\" in openai config",
+		},
+		{
+			name:         "openai_invalid_json",
+			adapter:      "openai",
+			config:       tftypes.NewValue(tftypes.String, `not-valid-json`),
+			expectError:  true,
+			errorSummary: "Invalid config JSON for openai adapter",
+		},
+		{
+			name:        "openai_valid",
+			adapter:     "openai",
+			config:      tftypes.NewValue(tftypes.String, `{"useResponsesApi":true}`),
+			expectError: false,
 		},
 		{
 			name:        "openai_no_config",
 			adapter:     "openai",
 			config:      tftypes.NewValue(tftypes.String, nil),
 			expectError: false,
+		},
+		{
+			name:         "azure_with_config",
+			adapter:      "azure",
+			config:       tftypes.NewValue(tftypes.String, `{"some":"value"}`),
+			expectError:  true,
+			errorSummary: "Config must be null for this adapter",
 		},
 	}
 
