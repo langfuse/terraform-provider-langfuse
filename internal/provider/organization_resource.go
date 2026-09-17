@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
@@ -16,6 +17,15 @@ import (
 
 var _ resource.Resource = &organizationResource{}
 var _ resource.ResourceWithImportState = &organizationResource{}
+
+// Langfuse deletes an organization's projects asynchronously, so an organization
+// delete issued right after its projects are removed can transiently fail until
+// that background cleanup completes. Delete polls with these settings; they are
+// package variables so tests can shrink them.
+var (
+	organizationDeleteTimeout      = 5 * time.Minute
+	organizationDeletePollInterval = 5 * time.Second
+)
 
 func NewOrganizationResource() resource.Resource {
 	return &organizationResource{}
@@ -210,27 +220,40 @@ func (r *organizationResource) Delete(ctx context.Context, req resource.DeleteRe
 		return
 	}
 
-	err := r.AdminClient.DeleteOrganization(ctx, data.ID.ValueString())
-	if err != nil {
-		// Handle the case where organization has existing projects
-		// This is common during test cleanup when dependencies aren't deleted in perfect order
-		if strings.Contains(err.Error(), "Cannot delete organization with existing projects") {
-			resp.Diagnostics.AddWarning(
-				"Organization deletion skipped",
-				"Organization still has existing projects. This is expected during test cleanup - "+
-					"the Docker environment cleanup will handle resource removal. Error: "+err.Error(),
-			)
-		} else {
+	// Langfuse removes an organization's projects asynchronously, so the delete can
+	// transiently fail with "Cannot delete organization with existing projects" while
+	// that background cleanup is still in flight. Poll-retry until it succeeds instead
+	// of swallowing the error and dropping the resource from state, which would leave
+	// the organization orphaned in a persistent (non-ephemeral) Langfuse instance.
+	deadline := time.Now().Add(organizationDeleteTimeout)
+	for {
+		err := r.AdminClient.DeleteOrganization(ctx, data.ID.ValueString())
+		if err == nil {
+			// Deletion succeeded; the framework removes the resource from state.
+			return
+		}
+
+		if !strings.Contains(err.Error(), "Cannot delete organization with existing projects") {
 			resp.Diagnostics.AddError("Error deleting organization", err.Error())
 			return
 		}
-	}
 
-	resp.Diagnostics.Append(resp.State.Set(ctx, &organizationResourceModel{
-		ID:       types.StringValue(""),
-		Name:     types.StringValue(""),
-		Metadata: types.MapNull(types.StringType),
-	})...)
+		if time.Now().After(deadline) {
+			resp.Diagnostics.AddError(
+				"Error deleting organization",
+				"timed out after "+organizationDeleteTimeout.String()+" waiting for the organization's "+
+					"projects to finish deleting so the organization could be removed. Last error: "+err.Error(),
+			)
+			return
+		}
+
+		select {
+		case <-ctx.Done():
+			resp.Diagnostics.AddError("Error deleting organization", ctx.Err().Error())
+			return
+		case <-time.After(organizationDeletePollInterval):
+		}
+	}
 }
 
 func (r *organizationResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
