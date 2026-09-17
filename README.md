@@ -10,6 +10,7 @@ Langfuse is an open-source LLM engineering platform that provides observability,
 - 🔑 **API Key Management** - Generate and manage organization and project API keys
 - 📦 **Project Management** - Create and configure projects within organizations
 - 🤖 **LLM Connections Management** - Configure and manage LLM API connections (OpenAI, Bedrock, Vertex AI, etc.)
+- 🧪 **Evaluation Management** - Define LLM-as-a-judge and code evaluators and the rules that run them on incoming observations
 - 🛡️ **Enterprise Support** - Full support for Langfuse Enterprise features
 - ⚡ **Terraform Integration** - Native integration with Terraform workflows
 
@@ -435,6 +436,60 @@ resource "langfuse_llm_connection" "my_gateway" {
   with_default_models = true
 }
 ```
+
+### `langfuse_evaluator`
+
+Manages an evaluator using the stable evaluators API (`/api/public/v2/evaluators`). Authenticates with **project** keys, so no enterprise license is required.
+
+#### Arguments
+
+- `project_public_key` (String, Required, Sensitive) - Project public key for authentication
+- `project_secret_key` (String, Required, Sensitive) - Project secret key for authentication
+- `name` (String, Required) - Human-readable evaluator name (not an identifier)
+- `description` (String, Optional) - Human-readable description
+- `type` (String, Required, ForceNew) - `llm_as_judge` or `code`
+- `prompt` (List of Object, `llm_as_judge` only) - Ordered chat messages with `role` and `content`; variables use `{{variable}}`
+- `model_config` (Object, Optional, `llm_as_judge` only) - `provider` and `model`; omit to use the project default evaluation model
+- `variable_mapping` (List of Object, Optional, `llm_as_judge` only) - Default mapping of each prompt variable to `input`, `output`, `metadata`, `tool_calls`, `expected_output` or `experiment_item_metadata`, with optional `json_path`
+- `output_definition` (Object, `llm_as_judge` only) - `data_type` (`NUMERIC`, `BOOLEAN`, `CATEGORICAL`) plus `min_value`/`max_value`, `categories`/`should_allow_multiple_matches`, and optional score instructions
+- `source_code` / `source_code_language` (String, `code` only) - Source code and runtime (`PYTHON`, `TYPESCRIPT`)
+
+#### Attributes
+
+- `id` (String) - Stable evaluator identifier shared by all versions
+- `version` (Number) - Latest version number; increments when a definition attribute changes
+- `version_id` (String) - Identifier of the latest version
+- `status` (String) - `active` or `paused`
+- `variables` (List of String) - Variables extracted from the prompt
+
+#### Behavior
+
+- **Versioning**: Changing any definition attribute creates a new version on the same stable `id`. Changing only `name` or `description` does not create a version.
+- **Rules follow the latest version**: `langfuse_evaluation_rule` assignments reference the evaluator `id` and automatically use its latest version.
+- **Import**: `terraform import langfuse_evaluator.example "<project_public_key>:<project_secret_key>:<evaluator_id>"`
+
+### `langfuse_evaluation_rule`
+
+Manages an evaluation rule using the stable evaluation-rules API (`/api/public/v2/evaluation-rules`). Authenticates with **project** keys.
+
+#### Arguments
+
+- `project_public_key` (String, Required, Sensitive) - Project public key for authentication
+- `project_secret_key` (String, Required, Sensitive) - Project secret key for authentication
+- `name` (String, Required) - Human-readable rule name (not an identifier)
+- `enabled` (Boolean, Required) - Whether live execution is enabled; requires at least one assignment
+- `sampling` (Number, Optional) - Fraction of matching observations to evaluate, `0`–`1` (default `1`)
+- `filter` (List of Object, Optional) - Conditions with `type`, `column`, optional `key`, `operator`, and either `value` (scalar, as a string) or `values` (options). Omit to match every observation
+- `evaluator_assignments` (List of Object) - `evaluator_id` plus optional per-rule `variable_mapping` override
+
+#### Attributes
+
+- `id` (String) - Stable evaluation-rule identifier
+
+#### Behavior
+
+- **Observation-level**: Rules target incoming observations. `datasetId` filters take the dataset **ID**, not its name
+- **Import**: `terraform import langfuse_evaluation_rule.example "<project_public_key>:<project_secret_key>:<evaluation_rule_id>"`
 
 ## Development
 
