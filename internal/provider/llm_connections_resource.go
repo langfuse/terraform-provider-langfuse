@@ -145,6 +145,9 @@ func (r *llmConnectionsResource) Schema(ctx context.Context, req resource.Schema
 					"(`{\"location\": \"<gcp-location>\"}`), and unsupported for other adapters. " +
 					"Computed, because the API returns any config the connection holds and offers no " +
 					"way to unset one.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
 	}
