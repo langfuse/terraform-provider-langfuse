@@ -153,7 +153,22 @@ func (r *projectApiKeyResource) Read(ctx context.Context, req resource.ReadReque
 }
 
 func (r *projectApiKeyResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
-	// No updates are supported; keys are immutable. Any change should force recreation.
+	// The key itself is immutable server-side; only the organization credentials used
+	// to manage it can change in place. Adopt the planned config and carry the
+	// server-side facts (id, public/secret key) over from the prior state.
+	var plan, state projectApiKeyResourceModel
+	resp.Diagnostics.Append(req.Plan.Get(ctx, &plan)...)
+	resp.Diagnostics.Append(req.State.Get(ctx, &state)...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
+
+	plan.ID = state.ID
+	plan.ProjectID = state.ProjectID
+	plan.PublicKey = state.PublicKey
+	plan.SecretKey = state.SecretKey
+
+	resp.Diagnostics.Append(resp.State.Set(ctx, &plan)...)
 }
 
 func (r *projectApiKeyResource) Delete(ctx context.Context, req resource.DeleteRequest, resp *resource.DeleteResponse) {

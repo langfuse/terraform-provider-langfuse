@@ -146,6 +146,76 @@ func TestProjectApiKeyResourceCRUD(t *testing.T) {
 	})
 }
 
+func TestProjectApiKeyResourceUpdate(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ctx := context.Background()
+
+	r, ok := NewProjectApiKeyResource().(*projectApiKeyResource)
+	if !ok {
+		t.Fatalf("factory did not return *projectApiKeyResource")
+	}
+
+	// No EXPECT calls: Update must not touch the API, the key is immutable server-side.
+	clientFactory := mocks.NewMockClientFactory(ctrl)
+
+	var configureResp resource.ConfigureResponse
+	r.Configure(ctx, resource.ConfigureRequest{ProviderData: clientFactory}, &configureResp)
+	if configureResp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics from Configure: %v", configureResp.Diagnostics)
+	}
+
+	var schemaResp resource.SchemaResponse
+	r.Schema(ctx, resource.SchemaRequest{}, &schemaResp)
+	if schemaResp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics from Schema: %v", schemaResp.Diagnostics)
+	}
+
+	priorState := tfsdk.State{Raw: buildApiKeyObjectValue(map[string]tftypes.Value{
+		"id":                       tftypes.NewValue(tftypes.String, "pak-123"),
+		"project_id":               tftypes.NewValue(tftypes.String, "proj-123"),
+		"organization_public_key":  tftypes.NewValue(tftypes.String, "pk-old"),
+		"organization_private_key": tftypes.NewValue(tftypes.String, "sk-old"),
+		"note":                     tftypes.NewValue(tftypes.String, nil),
+		"public_key":               tftypes.NewValue(tftypes.String, "pk-1234"),
+		"secret_key":               tftypes.NewValue(tftypes.String, "sk-1234"),
+	}), Schema: schemaResp.Schema}
+
+	// Org credentials rotated; computed attributes are unknown in the plan.
+	plan := tfsdk.Plan{Raw: buildApiKeyObjectValue(map[string]tftypes.Value{
+		"id":                       tftypes.NewValue(tftypes.String, tftypes.UnknownValue),
+		"project_id":               tftypes.NewValue(tftypes.String, "proj-123"),
+		"organization_public_key":  tftypes.NewValue(tftypes.String, "pk-new"),
+		"organization_private_key": tftypes.NewValue(tftypes.String, "sk-new"),
+		"note":                     tftypes.NewValue(tftypes.String, nil),
+		"public_key":               tftypes.NewValue(tftypes.String, tftypes.UnknownValue),
+		"secret_key":               tftypes.NewValue(tftypes.String, tftypes.UnknownValue),
+	}), Schema: schemaResp.Schema}
+
+	var updateResp resource.UpdateResponse
+	updateResp.State.Schema = schemaResp.Schema
+	r.Update(ctx, resource.UpdateRequest{Plan: plan, State: priorState}, &updateResp)
+	if updateResp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics from Update: %v", updateResp.Diagnostics)
+	}
+
+	var got projectApiKeyResourceModel
+	if diags := updateResp.State.Get(ctx, &got); diags.HasError() {
+		t.Fatalf("unexpected diagnostics reading updated state: %v", diags)
+	}
+
+	if got.OrganizationPublicKey.ValueString() != "pk-new" || got.OrganizationPrivateKey.ValueString() != "sk-new" {
+		t.Fatalf("updated state did not adopt new organization credentials: %+v", got)
+	}
+	if got.ID.ValueString() != "pak-123" || got.ProjectID.ValueString() != "proj-123" ||
+		got.PublicKey.ValueString() != "pk-1234" || got.SecretKey.ValueString() != "sk-1234" {
+		t.Fatalf("updated state lost server-side facts: %+v", got)
+	}
+}
+
 func buildApiKeyObjectValue(values map[string]tftypes.Value) tftypes.Value {
 	return tftypes.NewValue(
 		tftypes.Object{
