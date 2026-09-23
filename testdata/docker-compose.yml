@@ -30,7 +30,9 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   clickhouse:
-    image: clickhouse/clickhouse-server:23.3-alpine
+    # Langfuse v4 migrations require a recent ClickHouse (full-text index syntax);
+    # this matches the version pinned in the upstream langfuse/langfuse docker-compose.yml.
+    image: clickhouse/clickhouse-server:25.12
     environment:
       CLICKHOUSE_DB: langfuse
       CLICKHOUSE_USER: langfuse
@@ -91,6 +93,15 @@ services:
       LANGFUSE_INIT_USER_EMAIL: user@langfuse.com
       LANGFUSE_INIT_USER_NAME: Langfuse User
       LANGFUSE_INIT_USER_PASSWORD: defaultpassword
+      # Seed a project with fixed API keys so project-scoped resources
+      # (LLM connections, evaluators, evaluation rules) can be acceptance-tested
+      # without an enterprise license.
+      LANGFUSE_INIT_PROJECT_ID: test-project
+      LANGFUSE_INIT_PROJECT_NAME: Test Project
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: pk-lf-terraform-acceptance-test
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: sk-lf-terraform-acceptance-test
+      # Enable code evaluators (insecure-local supports TypeScript only); fine for a throwaway test stack.
+      LANGFUSE_CODE_EVAL_DISPATCHER: insecure-local
       # Database
       DATABASE_URL: postgres://langfuse:langfuse@postgres:5432/langfuse?sslmode=disable
       # ClickHouse connection
