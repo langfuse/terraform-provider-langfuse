@@ -51,18 +51,18 @@ func (mr *MockAdminClientMockRecorder) CreateOrganization(arg0, arg1 interface{}
 }
 
 // CreateOrganizationApiKey mocks base method.
-func (m *MockAdminClient) CreateOrganizationApiKey(arg0 context.Context, arg1 string) (*langfuse.OrganizationApiKey, error) {
+func (m *MockAdminClient) CreateOrganizationApiKey(arg0 context.Context, arg1 string, arg2 *langfuse.CreateOrganizationApiKeyRequest) (*langfuse.OrganizationApiKey, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateOrganizationApiKey", arg0, arg1)
+	ret := m.ctrl.Call(m, "CreateOrganizationApiKey", arg0, arg1, arg2)
 	ret0, _ := ret[0].(*langfuse.OrganizationApiKey)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CreateOrganizationApiKey indicates an expected call of CreateOrganizationApiKey.
-func (mr *MockAdminClientMockRecorder) CreateOrganizationApiKey(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockAdminClientMockRecorder) CreateOrganizationApiKey(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOrganizationApiKey", reflect.TypeOf((*MockAdminClient)(nil).CreateOrganizationApiKey), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateOrganizationApiKey", reflect.TypeOf((*MockAdminClient)(nil).CreateOrganizationApiKey), arg0, arg1, arg2)
 }
 
 // DeleteOrganization mocks base method.

@@ -20,6 +20,7 @@ func NewOrganizationApiKeyResource() resource.Resource {
 type organizationApiKeyResourceModel struct {
 	ID             types.String `tfsdk:"id"`
 	OrganizationID types.String `tfsdk:"organization_id"`
+	Note           types.String `tfsdk:"note"`
 	PublicKey      types.String `tfsdk:"public_key"`
 	SecretKey      types.String `tfsdk:"secret_key"`
 }
@@ -51,6 +52,14 @@ func (r *organizationApiKeyResource) Schema(ctx context.Context, req resource.Sc
 				Description: "The Langfuse organization the key belongs to.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.RequiresReplace(), // changing org → new key
+				},
+			},
+			"note": schema.StringAttribute{
+				Optional: true,
+				Description: "Optional note for the API key (POST /api/admin/organizations/{organizationId}/apiKeys). " +
+					"Because the Langfuse admin API only accepts a note at creation time, changing this attribute forces replacement: the old key is deleted and a new one is created (new id and credentials).",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
 				},
 			},
 			"public_key": schema.StringAttribute{
@@ -85,7 +94,7 @@ func (r *organizationApiKeyResource) Create(ctx context.Context, req resource.Cr
 		return
 	}
 
-	orgKey, err := r.AdminClient.CreateOrganizationApiKey(ctx, data.OrganizationID.ValueString())
+	orgKey, err := r.AdminClient.CreateOrganizationApiKey(ctx, data.OrganizationID.ValueString(), planNoteToCreateOrganizationApiKeyRequest(data.Note))
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating organization API key", err.Error())
 		return
@@ -94,6 +103,7 @@ func (r *organizationApiKeyResource) Create(ctx context.Context, req resource.Cr
 	resp.Diagnostics.Append(resp.State.Set(ctx, &organizationApiKeyResourceModel{
 		ID:             types.StringValue(orgKey.ID),
 		OrganizationID: types.StringValue(data.OrganizationID.ValueString()),
+		Note:           organizationApiKeyNoteToTF(orgKey.Note),
 		PublicKey:      types.StringValue(orgKey.PublicKey),
 		SecretKey:      types.StringValue(orgKey.SecretKey),
 	})...)
@@ -112,11 +122,13 @@ func (r *organizationApiKeyResource) Read(ctx context.Context, req resource.Read
 		return
 	}
 
-	_, err := r.AdminClient.GetOrganizationApiKey(ctx, data.OrganizationID.ValueString(), data.ID.ValueString())
+	key, err := r.AdminClient.GetOrganizationApiKey(ctx, data.OrganizationID.ValueString(), data.ID.ValueString())
 	if err != nil {
 		resp.State.RemoveResource(ctx)
 		return
 	}
+
+	data.Note = organizationApiKeyNoteToTF(key.Note)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -140,4 +152,19 @@ func (r *organizationApiKeyResource) Delete(ctx context.Context, req resource.De
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &organizationApiKeyResourceModel{})...)
+}
+
+func organizationApiKeyNoteToTF(note *string) types.String {
+	if note == nil {
+		return types.StringNull()
+	}
+	return types.StringValue(*note)
+}
+
+func planNoteToCreateOrganizationApiKeyRequest(note types.String) *langfuse.CreateOrganizationApiKeyRequest {
+	if note.IsUnknown() || note.IsNull() {
+		return nil
+	}
+	s := note.ValueString()
+	return &langfuse.CreateOrganizationApiKeyRequest{Note: &s}
 }
