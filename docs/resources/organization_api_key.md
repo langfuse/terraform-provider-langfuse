@@ -19,6 +19,10 @@ description: |-
 
 - `organization_id` (String) The Langfuse organization the key belongs to.
 
+### Optional
+
+- `note` (String) Optional note for the API key (POST /api/admin/organizations/{organizationId}/apiKeys). Because the Langfuse admin API only accepts a note at creation time, changing this attribute forces replacement: the old key is deleted and a new one is created (new id and credentials).
+
 ### Read-Only
 
 - `id` (String) The ID of this resource.
