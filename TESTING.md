@@ -83,6 +83,8 @@ make test-setup
 
 # 2. Run acceptance tests
 TF_ACC=1 LANGFUSE_HOST=http://localhost:3000 LANGFUSE_ADMIN_KEY=test_admin_key \
+  LANGFUSE_PROJECT_PUBLIC_KEY=pk-lf-terraform-acceptance-test \
+  LANGFUSE_PROJECT_SECRET_KEY=sk-lf-terraform-acceptance-test \
   go test ./internal/provider -v -run TestAcc
 
 # 3. Clean up
@@ -96,6 +98,7 @@ The acceptance tests require these environment variables:
 - `TF_ACC=1` - Enables acceptance testing
 - `LANGFUSE_HOST` - Base URL of the Langfuse instance (default: http://localhost:3000)
 - `LANGFUSE_ADMIN_KEY` - Admin API key for authentication
+- `LANGFUSE_PROJECT_PUBLIC_KEY` / `LANGFUSE_PROJECT_SECRET_KEY` - Project API keys for project-scoped resources (evaluators, evaluation rules). `make testacc` passes the keys seeded by `testdata/docker-compose.yml`; the evaluator tests are skipped when they are unset
 
 ### Test Infrastructure
 
