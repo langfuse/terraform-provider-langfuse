@@ -4,7 +4,7 @@ terraform {
   required_providers {
     langfuse = {
       source  = "langfuse/langfuse"
-      version = ">= 0.1.0"
+      version = "~> 0.8"
     }
   }
 }
@@ -15,11 +15,15 @@ variable "host" {
   description = "Base URL of the Langfuse control plane."
 }
 
-# Admin-level API key.  If you prefer, just export LANGFUSE_ADMIN_KEY instead of passing this variable.
+# Instance Management API key, i.e. the ADMIN_API_KEY configured on a self-hosted
+# Langfuse instance. Only needed for langfuse_organization and
+# langfuse_organization_api_key. The Instance Management API is not available on
+# Langfuse Cloud; omit admin_api_key there and pass an organization API key to the
+# resources instead. You can also export LANGFUSE_ADMIN_KEY instead of passing this variable.
 variable "admin_api_key" {
   type        = string
   sensitive   = true
-  description = "Admin API key for the Langfuse host. Optional when LANGFUSE_ADMIN_KEY is set."
+  description = "Instance Management API key of the self-hosted Langfuse instance. Optional when LANGFUSE_ADMIN_KEY is set."
   default     = null
 }
 

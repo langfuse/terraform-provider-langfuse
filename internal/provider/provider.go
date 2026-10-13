@@ -39,7 +39,7 @@ func (p *langfuseProvider) Schema(ctx context.Context, req provider.SchemaReques
 			"admin_api_key": schema.StringAttribute{
 				Optional:    true,
 				Sensitive:   true,
-				Description: "Admin API key. Only needed when managing organizations. Can also come from LANGFUSE_ADMIN_KEY.",
+				Description: "Instance Management API key, i.e. the ADMIN_API_KEY configured on a self-hosted Langfuse instance. Only needed for langfuse_organization and langfuse_organization_api_key. The Instance Management API is not available on Langfuse Cloud, so omit this there. Can also come from LANGFUSE_ADMIN_KEY.",
 			},
 			"tls_server_name": schema.StringAttribute{
 				Optional:    true,

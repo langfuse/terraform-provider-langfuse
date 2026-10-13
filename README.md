@@ -17,7 +17,7 @@ Langfuse is an open-source LLM engineering platform that provides observability,
 
 - [Terraform](https://www.terraform.io/downloads.html) >= 1.5
 - [Go](https://golang.org/doc/install) >= 1.24 (for development)
-- Enterprise license key (if managing organizations and organization api keys)
+- A self-hosted Langfuse instance with an Enterprise Edition license, only if you manage `langfuse_organization` or `langfuse_organization_api_key` (see [Authentication](#authentication))
 
 ## Installation
 
@@ -30,7 +30,7 @@ terraform {
   required_providers {
     langfuse = {
       source  = "langfuse/langfuse"
-      version = "~> 0.1.0"
+      version = "~> 0.8"
     }
   }
 }
@@ -56,8 +56,33 @@ go build -o terraform-provider-langfuse
 
 ```hcl
 provider "langfuse" {
-  host          = "https://cloud.langfuse.com"  # Optional, defaults to https://app.langfuse.com
-  admin_api_key = var.admin_api_key             # Optional, can use LANGFUSE_ADMIN_KEY env var
+  host          = "https://langfuse.example.com" # Optional, defaults to https://app.langfuse.com
+  admin_api_key = var.admin_api_key              # Optional, self-hosted only; can use LANGFUSE_ADMIN_KEY env var
+}
+```
+
+### Authentication
+
+Resources authenticate with different keys:
+
+- `langfuse_organization` and `langfuse_organization_api_key` use the [Instance Management API](https://langfuse.com/self-hosting/administration/instance-management-api). Set `admin_api_key` (or `LANGFUSE_ADMIN_KEY`) to the `ADMIN_API_KEY` configured on your instance. This API is only available on self-hosted Langfuse with an Enterprise Edition license, not on Langfuse Cloud.
+- `langfuse_project`, `langfuse_project_api_key`, `langfuse_organization_membership`, and `langfuse_project_membership` use an [organization-scoped API key](https://langfuse.com/docs/administration/scim-and-org-api), passed to each resource as `organization_public_key` and `organization_private_key`.
+- `langfuse_llm_connection` uses a project API key, passed as `project_public_key` and `project_secret_key`.
+
+#### Langfuse Cloud
+
+On Langfuse Cloud, omit `admin_api_key` from the provider block. Create an organization-scoped API key in your organization settings and pass it to the project, project API key, and membership resources. `langfuse_organization` and `langfuse_organization_api_key` can't be used on Cloud.
+
+```hcl
+provider "langfuse" {
+  host = "https://cloud.langfuse.com" # or https://us.cloud.langfuse.com
+}
+
+resource "langfuse_project" "example" {
+  name                     = "my-project"
+  organization_id          = var.organization_id
+  organization_public_key  = var.organization_public_key
+  organization_private_key = var.organization_secret_key
 }
 ```
 
@@ -80,19 +105,20 @@ provider "langfuse" {
 
 ### Environment Variables
 
-- `LANGFUSE_ADMIN_KEY` - Admin API key (alternative to `admin_api_key`)
-- `LANGFUSE_EE_LICENSE_KEY` - Enterprise license key (required for admin operations)
+- `LANGFUSE_ADMIN_KEY` - Instance Management API key (alternative to `admin_api_key`)
 
 ## Usage
 
 ### Complete Example
+
+This example targets a self-hosted instance, because it creates the organization and its API key through the Instance Management API. On Langfuse Cloud, drop `admin_api_key`, the `langfuse_organization` and `langfuse_organization_api_key` resources, and pass an existing organization-scoped API key instead.
 
 ```hcl
 terraform {
   required_providers {
     langfuse = {
       source  = "langfuse/langfuse"
-      version = "~> 0.1.0"
+      version = "~> 0.8"
     }
   }
 }
@@ -100,14 +126,13 @@ terraform {
 # Variables for configuration
 variable "host" {
   type        = string
-  description = "Base URL of the Langfuse control plane"
-  default     = "https://cloud.langfuse.com"
+  description = "Base URL of the self-hosted Langfuse instance"
 }
 
 variable "admin_api_key" {
   type        = string
   sensitive   = true
-  description = "Admin API key for Langfuse (or set LANGFUSE_ADMIN_KEY)"
+  description = "Instance Management API key of the self-hosted instance (or set LANGFUSE_ADMIN_KEY)"
 }
 
 # Configure the provider
@@ -160,7 +185,7 @@ output "project_secret_key" {
 
 ### `langfuse_organization`
 
-Manages Langfuse organizations.
+Manages Langfuse organizations through the Instance Management API. Requires `admin_api_key` and a self-hosted instance; not available on Langfuse Cloud.
 
 #### Arguments
 
@@ -172,7 +197,7 @@ Manages Langfuse organizations.
 
 ### `langfuse_organization_api_key`
 
-Manages API keys for organizations.
+Manages API keys for organizations through the Instance Management API. Requires `admin_api_key` and a self-hosted instance; not available on Langfuse Cloud, where organization API keys are created in the organization settings.
 
 #### Arguments
 
