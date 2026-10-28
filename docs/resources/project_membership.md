@@ -18,13 +18,42 @@ Manages membership in a Langfuse project.
 ### Required
 
 - `email` (String) The email address of the user to add to the project.
-- `organization_private_key` (String, Sensitive) Organization private key to authenticate the call.
-- `organization_public_key` (String, Sensitive) Organization public key to authenticate the call.
 - `project_id` (String) The ID of the project.
 - `role` (String) The role to assign to the user. Valid values are: OWNER, ADMIN, MEMBER, VIEWER, NONE.
+
+### Optional
+
+- `organization_private_key` (String, Sensitive) Organization private key to authenticate the call. Defaults to the provider-level organization_private_key.
+- `organization_public_key` (String, Sensitive) Organization public key to authenticate the call. Defaults to the provider-level organization_public_key.
 
 ### Read-Only
 
 - `id` (String) The unique identifier of the project membership.
 - `name` (String) The name of the user.
 - `user_id` (String) The unique identifier of the user.
+
+## Import
+
+Import is supported using the following syntax:
+
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+import {
+  to = langfuse_project_membership.member
+  id = "proj_123,user_789"
+}
+```
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Import with "<project_id>,<user_id>". The organization keys come from the
+# provider's organization_public_key and organization_private_key (or the
+# LANGFUSE_ORGANIZATION_PUBLIC_KEY and LANGFUSE_ORGANIZATION_PRIVATE_KEY environment variables).
+#
+# Don't put the keys in the import ID: Terraform prints import IDs in plaintext.
+# The deprecated "<project_id>,<user_id>,<organization_public_key>,<organization_private_key>"
+# format still works but raises a warning.
+terraform import langfuse_project_membership.member "proj_123,user_789"
+```

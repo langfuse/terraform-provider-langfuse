@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/golang/mock/gomock"
@@ -630,6 +631,64 @@ func TestProjectMembershipResourceImport(t *testing.T) {
 		if model.OrganizationPrivateKey.ValueString() != privateKey {
 			t.Errorf("expected OrganizationPrivateKey %q, got %q", privateKey, model.OrganizationPrivateKey.ValueString())
 		}
+
+		// The keys in the import ID are printed by Terraform, so a warning must be raised without echoing them.
+		warnings := importResp.Diagnostics.Warnings()
+		if len(warnings) != 1 || warnings[0].Summary() != "Import ID contains organization API keys" {
+			t.Fatalf("expected a warning about organization keys in the import ID, got: %v", importResp.Diagnostics)
+		}
+		if strings.Contains(warnings[0].Detail(), privateKey) || strings.Contains(warnings[0].Detail(), publicKey) {
+			t.Errorf("warning must not contain the organization keys")
+		}
+	})
+
+	t.Run("Key-free import ID uses provider keys", func(t *testing.T) {
+		clientFactory.DefaultOrganizationPublicKey = "pk-provider"
+		clientFactory.DefaultOrganizationPrivateKey = "sk-provider"
+		defer func() {
+			clientFactory.DefaultOrganizationPublicKey = ""
+			clientFactory.DefaultOrganizationPrivateKey = ""
+		}()
+
+		clientFactory.OrganizationClient.EXPECT().
+			GetProjectMembership(ctx, projectID, userID).
+			Return(&langfuse.ProjectMembership{
+				UserID: userID,
+				Role:   "VIEWER",
+				Email:  "imported@example.com",
+			}, nil)
+
+		var importResp resource.ImportStateResponse
+		importResp.State.Schema = schemaResp.Schema
+
+		r.ImportState(ctx, resource.ImportStateRequest{ID: projectID + "," + userID}, &importResp)
+
+		if len(importResp.Diagnostics) != 0 {
+			t.Fatalf("unexpected diagnostics from ImportState: %v", importResp.Diagnostics)
+		}
+		if clientFactory.UsedOrganizationPublicKey != "pk-provider" || clientFactory.UsedOrganizationPrivateKey != "sk-provider" {
+			t.Errorf("expected the provider-level organization keys to be used")
+		}
+
+		var model projectMembershipResourceModel
+		importResp.State.Get(ctx, &model)
+		if model.UserID.ValueString() != userID {
+			t.Errorf("expected UserID %q, got %q", userID, model.UserID.ValueString())
+		}
+		if !model.OrganizationPublicKey.IsNull() || !model.OrganizationPrivateKey.IsNull() {
+			t.Errorf("expected organization keys to stay null in state when inherited from the provider")
+		}
+	})
+
+	t.Run("Key-free import ID without provider keys", func(t *testing.T) {
+		var importResp resource.ImportStateResponse
+		importResp.State.Schema = schemaResp.Schema
+
+		r.ImportState(ctx, resource.ImportStateRequest{ID: projectID + "," + userID}, &importResp)
+
+		if !importResp.Diagnostics.HasError() || importResp.Diagnostics.Errors()[0].Summary() != "Missing organization credentials" {
+			t.Fatalf("expected 'Missing organization credentials' error, got: %v", importResp.Diagnostics)
+		}
 	})
 
 	t.Run("Invalid import format", func(t *testing.T) {
@@ -637,7 +696,7 @@ func TestProjectMembershipResourceImport(t *testing.T) {
 			name     string
 			importID string
 		}{
-			{"too_few_parts", "proj-123,user-789"},
+			{"three_parts", "proj-123,user-789,pk-1234"},
 			{"too_many_parts", "proj-123,user-789,pk-1234,sk-1234,extra"},
 			{"single_part", "proj-123"},
 			{"empty_string", ""},

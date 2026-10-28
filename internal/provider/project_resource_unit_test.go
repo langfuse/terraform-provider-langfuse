@@ -376,6 +376,15 @@ func TestProjectResourceImport(t *testing.T) {
 			t.Errorf("expected RetentionDays 0 (default value since Langfuse API doesn't return retention_days), got %d", stateData.RetentionDays.ValueInt32())
 		}
 
+		// The keys in the import ID are printed by Terraform, so a warning must be raised without echoing them.
+		warnings := importResp.Diagnostics.Warnings()
+		if len(warnings) != 1 || warnings[0].Summary() != "Import ID contains organization API keys" {
+			t.Fatalf("expected a warning about organization keys in the import ID, got: %v", importResp.Diagnostics)
+		}
+		if strings.Contains(warnings[0].Detail(), privateKey) || strings.Contains(warnings[0].Detail(), publicKey) {
+			t.Errorf("warning must not contain the organization keys")
+		}
+
 		// Verify metadata
 		if stateData.Metadata.IsNull() {
 			t.Error("expected metadata to not be null")
@@ -396,7 +405,7 @@ func TestProjectResourceImport(t *testing.T) {
 
 	// Test invalid import format
 	t.Run("Invalid import format", func(t *testing.T) {
-		invalidImportID := "just-project-id" // Missing other required parts
+		invalidImportID := "just-project-id" // Missing organization_id
 
 		var importResp resource.ImportStateResponse
 		importResp.State.Schema = schemaResp.Schema
@@ -448,6 +457,152 @@ func TestProjectResourceImport(t *testing.T) {
 			t.Error("expected error message to contain project ID")
 		}
 	})
+}
+
+func TestProjectResourceImportWithProviderKeys(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ctx := context.Background()
+
+	r, ok := NewProjectResource().(*projectResource)
+	if !ok {
+		t.Fatalf("NewProjectResource did not return a *projectResource as expected")
+	}
+
+	clientFactory := mocks.NewMockClientFactory(ctrl)
+
+	var configureResp resource.ConfigureResponse
+	r.Configure(ctx, resource.ConfigureRequest{ProviderData: clientFactory}, &configureResp)
+	if configureResp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics from Configure: %v", configureResp.Diagnostics)
+	}
+
+	var schemaResp resource.SchemaResponse
+	r.Schema(ctx, resource.SchemaRequest{}, &schemaResp)
+	if schemaResp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics from Schema: %v", schemaResp.Diagnostics)
+	}
+
+	projectID := "proj-123"
+	organizationID := "org-456"
+
+	t.Run("Key-free import ID uses provider keys", func(t *testing.T) {
+		clientFactory.DefaultOrganizationPublicKey = "pk-provider"
+		clientFactory.DefaultOrganizationPrivateKey = "sk-provider"
+
+		clientFactory.OrganizationClient.EXPECT().GetProject(ctx, projectID).Return(&langfuse.Project{
+			ID:   projectID,
+			Name: "Test Project",
+		}, nil)
+
+		var importResp resource.ImportStateResponse
+		importResp.State.Schema = schemaResp.Schema
+
+		r.ImportState(ctx, resource.ImportStateRequest{ID: projectID + "," + organizationID}, &importResp)
+
+		if len(importResp.Diagnostics) != 0 {
+			t.Fatalf("unexpected diagnostics from ImportState: %v", importResp.Diagnostics)
+		}
+		if clientFactory.UsedOrganizationPublicKey != "pk-provider" || clientFactory.UsedOrganizationPrivateKey != "sk-provider" {
+			t.Errorf("expected the provider-level organization keys to be used")
+		}
+
+		var stateData projectResourceModel
+		importResp.State.Get(ctx, &stateData)
+
+		if stateData.ID.ValueString() != projectID {
+			t.Errorf("expected ID %q, got %q", projectID, stateData.ID.ValueString())
+		}
+		if stateData.OrganizationID.ValueString() != organizationID {
+			t.Errorf("expected OrganizationID %q, got %q", organizationID, stateData.OrganizationID.ValueString())
+		}
+		if !stateData.OrganizationPublicKey.IsNull() || !stateData.OrganizationPrivateKey.IsNull() {
+			t.Errorf("expected organization keys to stay null in state when inherited from the provider")
+		}
+	})
+
+	t.Run("Key-free import ID without provider keys", func(t *testing.T) {
+		clientFactory.DefaultOrganizationPublicKey = ""
+		clientFactory.DefaultOrganizationPrivateKey = ""
+
+		var importResp resource.ImportStateResponse
+		importResp.State.Schema = schemaResp.Schema
+
+		r.ImportState(ctx, resource.ImportStateRequest{ID: projectID + "," + organizationID}, &importResp)
+
+		if !importResp.Diagnostics.HasError() || importResp.Diagnostics.Errors()[0].Summary() != "Missing organization credentials" {
+			t.Fatalf("expected 'Missing organization credentials' error, got: %v", importResp.Diagnostics)
+		}
+	})
+}
+
+func TestProjectResourceCreateWithProviderKeys(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ctx := context.Background()
+
+	r, ok := NewProjectResource().(*projectResource)
+	if !ok {
+		t.Fatalf("NewProjectResource did not return a *projectResource as expected")
+	}
+
+	clientFactory := mocks.NewMockClientFactory(ctrl)
+	clientFactory.DefaultOrganizationPublicKey = "pk-provider"
+	clientFactory.DefaultOrganizationPrivateKey = "sk-provider"
+
+	var configureResp resource.ConfigureResponse
+	r.Configure(ctx, resource.ConfigureRequest{ProviderData: clientFactory}, &configureResp)
+	if configureResp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics from Configure: %v", configureResp.Diagnostics)
+	}
+
+	var schemaResp resource.SchemaResponse
+	r.Schema(ctx, resource.SchemaRequest{}, &schemaResp)
+	if schemaResp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics from Schema: %v", schemaResp.Diagnostics)
+	}
+
+	clientFactory.OrganizationClient.EXPECT().CreateProject(ctx, gomock.Any()).Return(&langfuse.Project{
+		ID:   "proj-123",
+		Name: "ChatQA",
+	}, nil)
+
+	createConfig := tfsdk.Config{
+		Raw: buildProjectObjectValue(map[string]tftypes.Value{
+			"id":                       tftypes.NewValue(tftypes.String, nil),
+			"name":                     tftypes.NewValue(tftypes.String, "ChatQA"),
+			"retention_days":           tftypes.NewValue(tftypes.Number, nil),
+			"metadata":                 tftypes.NewValue(tftypes.Map{ElementType: tftypes.String}, nil),
+			"organization_id":          tftypes.NewValue(tftypes.String, "org-123"),
+			"organization_public_key":  tftypes.NewValue(tftypes.String, nil),
+			"organization_private_key": tftypes.NewValue(tftypes.String, nil),
+		}),
+		Schema: schemaResp.Schema,
+	}
+
+	var createResp resource.CreateResponse
+	createResp.State.Schema = schemaResp.Schema
+	r.Create(ctx, resource.CreateRequest{Config: createConfig}, &createResp)
+	if createResp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics from Create: %v", createResp.Diagnostics)
+	}
+
+	if clientFactory.UsedOrganizationPublicKey != "pk-provider" || clientFactory.UsedOrganizationPrivateKey != "sk-provider" {
+		t.Errorf("expected the provider-level organization keys to be used")
+	}
+
+	var stateData projectResourceModel
+	createResp.State.Get(ctx, &stateData)
+	// Storing the inherited keys would make the next plan diff against the null config values.
+	if !stateData.OrganizationPublicKey.IsNull() || !stateData.OrganizationPrivateKey.IsNull() {
+		t.Errorf("expected organization keys to stay null in state when inherited from the provider")
+	}
 }
 
 func buildProjectObjectValue(values map[string]tftypes.Value) tftypes.Value {

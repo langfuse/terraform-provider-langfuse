@@ -13,8 +13,12 @@ Manage [Langfuse](https://langfuse.com) organizations, projects, API keys, membe
 Resources authenticate with different keys:
 
 - `langfuse_organization` and `langfuse_organization_api_key` use the [Instance Management API](https://langfuse.com/self-hosting/administration/instance-management-api). Set `admin_api_key` (or `LANGFUSE_ADMIN_KEY`) to the `ADMIN_API_KEY` configured on your instance. This API is only available on self-hosted Langfuse with an Enterprise Edition license, not on Langfuse Cloud.
-- `langfuse_project`, `langfuse_project_api_key`, `langfuse_organization_membership`, and `langfuse_project_membership` use an [organization-scoped API key](https://langfuse.com/docs/administration/scim-and-org-api), passed to each resource as `organization_public_key` and `organization_private_key`.
+- `langfuse_project`, `langfuse_project_api_key`, `langfuse_organization_membership`, and `langfuse_project_membership` use an [organization-scoped API key](https://langfuse.com/docs/administration/scim-and-org-api), passed to each resource as `organization_public_key` and `organization_private_key`. `langfuse_project` and `langfuse_project_membership` can instead take the key from the provider's `organization_public_key` and `organization_private_key` (or `LANGFUSE_ORGANIZATION_PUBLIC_KEY` and `LANGFUSE_ORGANIZATION_PRIVATE_KEY`) when they don't set it themselves.
 - `langfuse_llm_connection` uses a project API key, passed as `project_public_key` and `project_secret_key`.
+
+### Importing without exposing keys
+
+Terraform does not treat import IDs as sensitive: it prints them in plan output, saved plan files and `terraform import` output. Set the organization key on the provider and import `langfuse_project` with `<project_id>,<organization_id>` and `langfuse_project_membership` with `<project_id>,<user_id>`. The older import ID formats that end in `<organization_public_key>,<organization_private_key>` still work but raise a warning, because they put the secret key in that output.
 
 ### Langfuse Cloud
 
@@ -154,4 +158,6 @@ output "project_api_public_key" {
 
 - `admin_api_key` (String, Sensitive) Instance Management API key, i.e. the ADMIN_API_KEY configured on a self-hosted Langfuse instance. Only needed for langfuse_organization and langfuse_organization_api_key. The Instance Management API is not available on Langfuse Cloud, so omit this there. Can also come from LANGFUSE_ADMIN_KEY.
 - `host` (String) Base URI of the Langfuse instance (defaults to https://app.langfuse.com).
+- `organization_private_key` (String, Sensitive) Secret key of an organization-scoped API key. Used by langfuse_project and langfuse_project_membership when they don't set organization_private_key themselves, and lets them be imported without keys in the import ID. Can also come from LANGFUSE_ORGANIZATION_PRIVATE_KEY.
+- `organization_public_key` (String, Sensitive) Public key of an organization-scoped API key. Used by langfuse_project and langfuse_project_membership when they don't set organization_public_key themselves, and lets them be imported without keys in the import ID. Can also come from LANGFUSE_ORGANIZATION_PUBLIC_KEY.
 - `tls_server_name` (String) Hostname to verify the TLS certificate against, also sent as the SNI value. Set this when the instance is reached through a port forward or tunnel, where the host above (typically localhost) cannot match the certificate. Certificate verification remains enabled.
