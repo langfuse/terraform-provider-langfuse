@@ -30,7 +30,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   clickhouse:
-    image: clickhouse/clickhouse-server:23.3-alpine
+    image: clickhouse/clickhouse-server:26.3.62.3-alpine
     environment:
       CLICKHOUSE_DB: langfuse
       CLICKHOUSE_USER: langfuse
