@@ -102,7 +102,7 @@ The acceptance tests require these environment variables:
 The test setup uses:
 
 - **PostgreSQL 15** - Primary database
-- **ClickHouse 23.3** - Analytics database  
+- **ClickHouse 26.3** - Analytics database  
 - **Redis 7** - Caching layer
 - **MinIO** - S3-compatible object storage
 - **Langfuse** - Main application
