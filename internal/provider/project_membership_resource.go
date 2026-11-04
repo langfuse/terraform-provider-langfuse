@@ -100,14 +100,14 @@ func (r *projectMembershipResource) Schema(ctx context.Context, req resource.Sch
 				Computed:    true,
 			},
 			"organization_public_key": schema.StringAttribute{
-				Required:    true,
+				Optional:    true,
 				Sensitive:   true,
-				Description: "Organization public key to authenticate the call.",
+				Description: "Organization public key to authenticate the call. Defaults to the provider-level organization_public_key.",
 			},
 			"organization_private_key": schema.StringAttribute{
-				Required:    true,
+				Optional:    true,
 				Sensitive:   true,
-				Description: "Organization private key to authenticate the call.",
+				Description: "Organization private key to authenticate the call. Defaults to the provider-level organization_private_key.",
 			},
 		},
 	}
@@ -122,10 +122,11 @@ func (r *projectMembershipResource) Create(ctx context.Context, req resource.Cre
 
 	role := data.Role.ValueString()
 
-	organizationClient := r.ClientFactory.NewOrganizationClient(
-		data.OrganizationPublicKey.ValueString(),
-		data.OrganizationPrivateKey.ValueString(),
-	)
+	organizationClient, diags := newOrganizationClient(r.ClientFactory, data.OrganizationPublicKey, data.OrganizationPrivateKey)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	// Look up user ID from email via organization memberships
 	memberships, err := organizationClient.ListMemberships(ctx)
@@ -185,10 +186,11 @@ func (r *projectMembershipResource) Read(ctx context.Context, req resource.ReadR
 		return
 	}
 
-	organizationClient := r.ClientFactory.NewOrganizationClient(
-		state.OrganizationPublicKey.ValueString(),
-		state.OrganizationPrivateKey.ValueString(),
-	)
+	organizationClient, diags := newOrganizationClient(r.ClientFactory, state.OrganizationPublicKey, state.OrganizationPrivateKey)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	membership, err := organizationClient.GetProjectMembership(ctx, state.ProjectID.ValueString(), state.ID.ValueString())
 	if err != nil {
@@ -223,10 +225,11 @@ func (r *projectMembershipResource) Update(ctx context.Context, req resource.Upd
 
 	role := data.Role.ValueString()
 
-	organizationClient := r.ClientFactory.NewOrganizationClient(
-		state.OrganizationPublicKey.ValueString(),
-		state.OrganizationPrivateKey.ValueString(),
-	)
+	organizationClient, diags := newOrganizationClient(r.ClientFactory, data.OrganizationPublicKey, data.OrganizationPrivateKey)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	updateRequest := &langfuse.CreateProjectMembershipRequest{
 		UserID: state.UserID.ValueString(),
@@ -246,8 +249,8 @@ func (r *projectMembershipResource) Update(ctx context.Context, req resource.Upd
 		Role:                   types.StringValue(membership.Role),
 		UserID:                 types.StringValue(membership.UserID),
 		Name:                   types.StringValue(membership.Name),
-		OrganizationPublicKey:  state.OrganizationPublicKey,
-		OrganizationPrivateKey: state.OrganizationPrivateKey,
+		OrganizationPublicKey:  data.OrganizationPublicKey,
+		OrganizationPrivateKey: data.OrganizationPrivateKey,
 	})...)
 }
 
@@ -258,10 +261,11 @@ func (r *projectMembershipResource) Delete(ctx context.Context, req resource.Del
 		return
 	}
 
-	organizationClient := r.ClientFactory.NewOrganizationClient(
-		state.OrganizationPublicKey.ValueString(),
-		state.OrganizationPrivateKey.ValueString(),
-	)
+	organizationClient, diags := newOrganizationClient(r.ClientFactory, state.OrganizationPublicKey, state.OrganizationPrivateKey)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	err := organizationClient.DeleteProjectMembership(ctx, state.ProjectID.ValueString(), state.UserID.ValueString())
 	if err != nil {
@@ -271,22 +275,34 @@ func (r *projectMembershipResource) Delete(ctx context.Context, req resource.Del
 }
 
 func (r *projectMembershipResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	// Import format: project_id,user_id,organization_public_key,organization_private_key
-	// Example: terraform import langfuse_project_membership.example "proj_123,mem_456,pk_789,sk_012"
+	// Import format: project_id,user_id, using the provider-level organization keys.
+	// Example: terraform import langfuse_project_membership.example "proj_123,mem_456"
+	//
+	// The deprecated format project_id,user_id,organization_public_key,organization_private_key
+	// is still accepted, but Terraform prints import IDs in plaintext, so it leaks the keys.
 
 	importParts := strings.Split(req.ID, ",")
-	if len(importParts) != 4 {
+	if len(importParts) != 2 && len(importParts) != 4 {
 		resp.Diagnostics.AddError("Invalid import format",
-			"Import ID must be in format: project_id,user_id,organization_public_key,organization_private_key")
+			"Import ID must be in format: project_id,user_id")
 		return
 	}
 
 	projectID := importParts[0]
 	userID := importParts[1]
-	organizationPublicKey := importParts[2]
-	organizationPrivateKey := importParts[3]
+	organizationPublicKey := types.StringNull()
+	organizationPrivateKey := types.StringNull()
+	if len(importParts) == 4 {
+		organizationPublicKey = types.StringValue(importParts[2])
+		organizationPrivateKey = types.StringValue(importParts[3])
+		resp.Diagnostics.AddWarning(organizationKeysInImportIDWarning("project_id,user_id"))
+	}
 
-	organizationClient := r.ClientFactory.NewOrganizationClient(organizationPublicKey, organizationPrivateKey)
+	organizationClient, diags := newOrganizationClient(r.ClientFactory, organizationPublicKey, organizationPrivateKey)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	membership, err := organizationClient.GetProjectMembership(ctx, projectID, userID)
 	if err != nil {
 		resp.Diagnostics.AddError("Error importing project membership",
@@ -301,7 +317,7 @@ func (r *projectMembershipResource) ImportState(ctx context.Context, req resourc
 		Role:                   types.StringValue(membership.Role),
 		UserID:                 types.StringValue(membership.UserID),
 		Name:                   types.StringValue(membership.Name),
-		OrganizationPublicKey:  types.StringValue(organizationPublicKey),
-		OrganizationPrivateKey: types.StringValue(organizationPrivateKey),
+		OrganizationPublicKey:  organizationPublicKey,
+		OrganizationPrivateKey: organizationPrivateKey,
 	})...)
 }

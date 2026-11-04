@@ -78,17 +78,17 @@ func (r *projectResource) Schema(ctx context.Context, req resource.SchemaRequest
 				},
 			},
 			"organization_public_key": schema.StringAttribute{
-				Required:    true,
+				Optional:    true,
 				Sensitive:   true,
-				Description: "Organization public key to authenticate the call.",
+				Description: "Organization public key to authenticate the call. Defaults to the provider-level organization_public_key.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
 			},
 			"organization_private_key": schema.StringAttribute{
-				Required:    true,
+				Optional:    true,
 				Sensitive:   true,
-				Description: "Organization private key to authenticate the call.",
+				Description: "Organization private key to authenticate the call. Defaults to the provider-level organization_private_key.",
 				PlanModifiers: []planmodifier.String{
 					stringplanmodifier.UseStateForUnknown(),
 				},
@@ -113,7 +113,11 @@ func (r *projectResource) Create(ctx context.Context, req resource.CreateRequest
 		}
 	}
 
-	organizationClient := r.ClientFactory.NewOrganizationClient(data.OrganizationPublicKey.ValueString(), data.OrganizationPrivateKey.ValueString())
+	organizationClient, diags := newOrganizationClient(r.ClientFactory, data.OrganizationPublicKey, data.OrganizationPrivateKey)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	project, err := organizationClient.CreateProject(ctx, &langfuse.CreateProjectRequest{
 		Name:          data.Name.ValueString(),
 		RetentionDays: data.RetentionDays.ValueInt32(),
@@ -142,8 +146,8 @@ func (r *projectResource) Create(ctx context.Context, req resource.CreateRequest
 		RetentionDays:          types.Int32Value(project.RetentionDays),
 		Metadata:               metadataMap,
 		OrganizationID:         types.StringValue(data.OrganizationID.ValueString()),
-		OrganizationPublicKey:  types.StringValue(data.OrganizationPublicKey.ValueString()),
-		OrganizationPrivateKey: types.StringValue(data.OrganizationPrivateKey.ValueString()),
+		OrganizationPublicKey:  data.OrganizationPublicKey,
+		OrganizationPrivateKey: data.OrganizationPrivateKey,
 	})...)
 }
 
@@ -160,7 +164,11 @@ func (r *projectResource) Read(ctx context.Context, req resource.ReadRequest, re
 		return
 	}
 
-	organizationClient := r.ClientFactory.NewOrganizationClient(data.OrganizationPublicKey.ValueString(), data.OrganizationPrivateKey.ValueString())
+	organizationClient, diags := newOrganizationClient(r.ClientFactory, data.OrganizationPublicKey, data.OrganizationPrivateKey)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	project, err := organizationClient.GetProject(ctx, data.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error reading project", err.Error())
@@ -186,8 +194,8 @@ func (r *projectResource) Read(ctx context.Context, req resource.ReadRequest, re
 		RetentionDays:          data.RetentionDays,
 		Metadata:               metadataMap,
 		OrganizationID:         types.StringValue(data.OrganizationID.ValueString()),
-		OrganizationPublicKey:  types.StringValue(data.OrganizationPublicKey.ValueString()),
-		OrganizationPrivateKey: types.StringValue(data.OrganizationPrivateKey.ValueString()),
+		OrganizationPublicKey:  data.OrganizationPublicKey,
+		OrganizationPrivateKey: data.OrganizationPrivateKey,
 	})...)
 }
 
@@ -216,7 +224,11 @@ func (r *projectResource) Update(ctx context.Context, req resource.UpdateRequest
 		}
 	}
 
-	organizationClient := r.ClientFactory.NewOrganizationClient(data.OrganizationPublicKey.ValueString(), data.OrganizationPrivateKey.ValueString())
+	organizationClient, diags := newOrganizationClient(r.ClientFactory, data.OrganizationPublicKey, data.OrganizationPrivateKey)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 
 	request := &langfuse.UpdateProjectRequest{
 		Name:          data.Name.ValueString(),
@@ -248,8 +260,8 @@ func (r *projectResource) Update(ctx context.Context, req resource.UpdateRequest
 		RetentionDays:          data.RetentionDays, // Use from config, not API response
 		Metadata:               metadataMap,
 		OrganizationID:         types.StringValue(data.OrganizationID.ValueString()),
-		OrganizationPublicKey:  types.StringValue(data.OrganizationPublicKey.ValueString()),
-		OrganizationPrivateKey: types.StringValue(data.OrganizationPrivateKey.ValueString()),
+		OrganizationPublicKey:  data.OrganizationPublicKey,
+		OrganizationPrivateKey: data.OrganizationPrivateKey,
 	})...)
 }
 
@@ -261,7 +273,11 @@ func (r *projectResource) Delete(ctx context.Context, req resource.DeleteRequest
 		return
 	}
 
-	organizationClient := r.ClientFactory.NewOrganizationClient(data.OrganizationPublicKey.ValueString(), data.OrganizationPrivateKey.ValueString())
+	organizationClient, diags := newOrganizationClient(r.ClientFactory, data.OrganizationPublicKey, data.OrganizationPrivateKey)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	err := organizationClient.DeleteProject(ctx, data.ID.ValueString())
 	if err != nil {
 		resp.Diagnostics.AddError("Error deleting project", err.Error())
@@ -280,23 +296,35 @@ func (r *projectResource) Delete(ctx context.Context, req resource.DeleteRequest
 }
 
 func (r *projectResource) ImportState(ctx context.Context, req resource.ImportStateRequest, resp *resource.ImportStateResponse) {
-	// Import format: project_id,organization_id,organization_public_key,organization_private_key
-	// Example: terraform import langfuse_project.example "proj_123,org_456,pk_789,sk_012"
+	// Import format: project_id,organization_id, using the provider-level organization keys.
+	// Example: terraform import langfuse_project.example "proj_123,org_456"
+	//
+	// The deprecated format project_id,organization_id,organization_public_key,organization_private_key
+	// is still accepted, but Terraform prints import IDs in plaintext, so it leaks the keys.
 
 	importParts := strings.Split(req.ID, ",")
-	if len(importParts) != 4 {
+	if len(importParts) != 2 && len(importParts) != 4 {
 		resp.Diagnostics.AddError("Invalid import format",
-			"Import ID must be in format: project_id,organization_id,organization_public_key,organization_private_key")
+			"Import ID must be in format: project_id,organization_id")
 		return
 	}
 
 	projectID := importParts[0]
 	organizationID := importParts[1]
-	organizationPublicKey := importParts[2]
-	organizationPrivateKey := importParts[3]
+	organizationPublicKey := types.StringNull()
+	organizationPrivateKey := types.StringNull()
+	if len(importParts) == 4 {
+		organizationPublicKey = types.StringValue(importParts[2])
+		organizationPrivateKey = types.StringValue(importParts[3])
+		resp.Diagnostics.AddWarning(organizationKeysInImportIDWarning("project_id,organization_id"))
+	}
 
-	// Get the project details using the provided organization credentials
-	organizationClient := r.ClientFactory.NewOrganizationClient(organizationPublicKey, organizationPrivateKey)
+	// Get the project details using the resolved organization credentials
+	organizationClient, diags := newOrganizationClient(r.ClientFactory, organizationPublicKey, organizationPrivateKey)
+	resp.Diagnostics.Append(diags...)
+	if resp.Diagnostics.HasError() {
+		return
+	}
 	project, err := organizationClient.GetProject(ctx, projectID)
 	if err != nil {
 		resp.Diagnostics.AddError("Error importing project",
@@ -324,8 +352,8 @@ func (r *projectResource) ImportState(ctx context.Context, req resource.ImportSt
 		RetentionDays:          types.Int32Value(0), // Default value since retention_days is write-only in Langfuse API
 		Metadata:               metadataMap,
 		OrganizationID:         types.StringValue(organizationID),
-		OrganizationPublicKey:  types.StringValue(organizationPublicKey),
-		OrganizationPrivateKey: types.StringValue(organizationPrivateKey),
+		OrganizationPublicKey:  organizationPublicKey,
+		OrganizationPrivateKey: organizationPrivateKey,
 	})...)
 
 	// Set the ID attribute explicitly to just the project ID (not the full import string)
