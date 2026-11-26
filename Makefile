@@ -12,7 +12,9 @@ test:
 
 # Run acceptance tests (requires docker)
 testacc: test-setup
-	TF_ACC=1 LANGFUSE_HOST=http://localhost:3000 LANGFUSE_ADMIN_KEY=test_admin_key go test ./internal/provider -v -run TestAcc
+	TF_ACC=1 LANGFUSE_HOST=http://localhost:3000 LANGFUSE_ADMIN_KEY=test_admin_key \
+	LANGFUSE_PROJECT_PUBLIC_KEY=pk-lf-terraform-acceptance-test LANGFUSE_PROJECT_SECRET_KEY=sk-lf-terraform-acceptance-test \
+	go test ./internal/provider -v -run TestAcc
 
 # Run all tests (unit + acceptance)
 test-all: test testacc
