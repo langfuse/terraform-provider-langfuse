@@ -308,17 +308,44 @@ func TestLlmConnectionsResource_ConfigValidator(t *testing.T) {
 			errorSummary: "Invalid config JSON for google-vertex-ai adapter",
 		},
 		{
-			name:         "openai_with_config",
+			name:         "openai_missing_use_responses_api",
 			adapter:      "openai",
 			config:       tftypes.NewValue(tftypes.String, `{"some":"value"}`),
 			expectError:  true,
-			errorSummary: "Config must be null for this adapter",
+			errorSummary: "Missing \"useResponsesApi\" in openai config",
+		},
+		{
+			name:         "openai_use_responses_api_not_bool",
+			adapter:      "openai",
+			config:       tftypes.NewValue(tftypes.String, `{"useResponsesApi":"yes"}`),
+			expectError:  true,
+			errorSummary: "Invalid \"useResponsesApi\" in openai config",
+		},
+		{
+			name:         "openai_invalid_json",
+			adapter:      "openai",
+			config:       tftypes.NewValue(tftypes.String, `not-valid-json`),
+			expectError:  true,
+			errorSummary: "Invalid config JSON for openai adapter",
+		},
+		{
+			name:        "openai_valid",
+			adapter:     "openai",
+			config:      tftypes.NewValue(tftypes.String, `{"useResponsesApi":true}`),
+			expectError: false,
 		},
 		{
 			name:        "openai_no_config",
 			adapter:     "openai",
 			config:      tftypes.NewValue(tftypes.String, nil),
 			expectError: false,
+		},
+		{
+			name:         "azure_with_config",
+			adapter:      "azure",
+			config:       tftypes.NewValue(tftypes.String, `{"some":"value"}`),
+			expectError:  true,
+			errorSummary: "Config must be null for this adapter",
 		},
 	}
 
@@ -820,6 +847,42 @@ func TestLlmConnectionsResource_ProviderFieldRequiresReplace(t *testing.T) {
 	if !found {
 		t.Error("expected \"provider_name\" attribute to have RequiresReplace plan modifier, but it was not found")
 	}
+}
+
+// TestLlmConnectionsResource_ConfigUsesStateForUnknown verifies that the computed
+// config attribute carries UseStateForUnknown, so a config left null in HCL keeps
+// its prior state value in the plan instead of showing as known after apply
+// whenever another attribute changes.
+func TestLlmConnectionsResource_ConfigUsesStateForUnknown(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	r := NewLlmConnectionResource()
+
+	var schemaResp resource.SchemaResponse
+	r.Schema(ctx, resource.SchemaRequest{}, &schemaResp)
+
+	configAttr, ok := schemaResp.Schema.Attributes["config"]
+	if !ok {
+		t.Fatal("expected schema to have a \"config\" attribute")
+	}
+
+	strAttr, ok := configAttr.(resschema.StringAttribute)
+	if !ok {
+		t.Fatalf("expected \"config\" to be a StringAttribute, got %T", configAttr)
+	}
+
+	if !strAttr.Optional || !strAttr.Computed {
+		t.Fatalf("expected \"config\" to be Optional and Computed, got Optional=%t Computed=%t", strAttr.Optional, strAttr.Computed)
+	}
+
+	want := stringplanmodifier.UseStateForUnknown().Description(ctx)
+	for _, pm := range strAttr.PlanModifiers {
+		if pm.Description(ctx) == want {
+			return
+		}
+	}
+	t.Error("expected \"config\" attribute to have UseStateForUnknown plan modifier, but it was not found")
 }
 
 func TestLlmConnectionsResource_ImportState(t *testing.T) {

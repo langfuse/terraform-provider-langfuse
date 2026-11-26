@@ -3,12 +3,12 @@
 page_title: "langfuse_organization_api_key Resource - Langfuse"
 subcategory: ""
 description: |-
-  
+  Manages an organization API key through the Instance Management API. Requires admin_api_key on the provider and a self-hosted Langfuse instance; not available on Langfuse Cloud. On Langfuse Cloud, create organization API keys in the organization settings instead.
 ---
 
 # langfuse_organization_api_key (Resource)
 
-
+Manages an organization API key through the Instance Management API. Requires admin_api_key on the provider and a self-hosted Langfuse instance; not available on Langfuse Cloud. On Langfuse Cloud, create organization API keys in the organization settings instead.
 
 
 

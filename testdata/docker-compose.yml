@@ -30,9 +30,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
 
   clickhouse:
-    # Langfuse v4 migrations require a recent ClickHouse (full-text index syntax);
-    # this matches the version pinned in the upstream langfuse/langfuse docker-compose.yml.
-    image: clickhouse/clickhouse-server:25.12
+    image: clickhouse/clickhouse-server:26.3.62.3-alpine
     environment:
       CLICKHOUSE_DB: langfuse
       CLICKHOUSE_USER: langfuse
