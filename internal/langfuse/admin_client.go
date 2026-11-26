@@ -13,9 +13,15 @@ type Organization struct {
 }
 
 type OrganizationApiKey struct {
-	ID        string `json:"id"`
-	PublicKey string `json:"publicKey"`
-	SecretKey string `json:"secretKey"`
+	ID        string  `json:"id"`
+	PublicKey string  `json:"publicKey"`
+	SecretKey string  `json:"secretKey"`
+	Note      *string `json:"note"`
+}
+
+// CreateOrganizationApiKeyRequest is the JSON body for POST /api/admin/organizations/{organizationId}/apiKeys.
+type CreateOrganizationApiKeyRequest struct {
+	Note *string `json:"note,omitempty"`
 }
 
 type ListOrganizationsResponse struct {
@@ -53,7 +59,7 @@ type AdminClient interface {
 	UpdateOrganization(ctx context.Context, orgID string, request *UpdateOrganizationRequest) (*Organization, error)
 	DeleteOrganization(ctx context.Context, orgID string) error
 	GetOrganizationApiKey(ctx context.Context, orgID string, apiKeyID string) (*OrganizationApiKey, error)
-	CreateOrganizationApiKey(ctx context.Context, orgID string) (*OrganizationApiKey, error)
+	CreateOrganizationApiKey(ctx context.Context, orgID string, request *CreateOrganizationApiKeyRequest) (*OrganizationApiKey, error)
 	DeleteOrganizationApiKey(ctx context.Context, orgID string, apiKeyID string) error
 }
 
@@ -163,8 +169,12 @@ func (c *adminClientImpl) GetOrganizationApiKey(ctx context.Context, orgID strin
 	return nil, fmt.Errorf("cannot find API key with ID %s in organization %s", apiKeyID, orgID)
 }
 
-func (c *adminClientImpl) CreateOrganizationApiKey(ctx context.Context, orgID string) (*OrganizationApiKey, error) {
-	resp, err := c.makeRequest(ctx, http.MethodPost, fmt.Sprintf("api/admin/organizations/%s/apiKeys", orgID), nil)
+func (c *adminClientImpl) CreateOrganizationApiKey(ctx context.Context, orgID string, request *CreateOrganizationApiKeyRequest) (*OrganizationApiKey, error) {
+	var body any
+	if request != nil {
+		body = request
+	}
+	resp, err := c.makeRequest(ctx, http.MethodPost, fmt.Sprintf("api/admin/organizations/%s/apiKeys", orgID), body)
 	if err != nil {
 		return nil, err
 	}

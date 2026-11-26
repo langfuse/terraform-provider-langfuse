@@ -92,11 +92,12 @@ func TestOrganizationApiKeyResourceCRUD(t *testing.T) {
 
 	var createResp resource.CreateResponse
 	t.Run("Create", func(t *testing.T) {
-		clientFactory.AdminClient.EXPECT().CreateOrganizationApiKey(ctx, orgID).Return(&langfuse.OrganizationApiKey{ID: "oak-123", PublicKey: "pk-1234", SecretKey: "sk-1234"}, nil)
+		clientFactory.AdminClient.EXPECT().CreateOrganizationApiKey(ctx, orgID, nil).Return(&langfuse.OrganizationApiKey{ID: "oak-123", PublicKey: "pk-1234", SecretKey: "sk-1234"}, nil)
 
 		createConfig := tfsdk.Config{Raw: buildOrgApiKeyObjectValue(map[string]tftypes.Value{
 			"id":              tftypes.NewValue(tftypes.String, nil),
 			"organization_id": tftypes.NewValue(tftypes.String, orgID),
+			"note":            tftypes.NewValue(tftypes.String, nil),
 			"public_key":      tftypes.NewValue(tftypes.String, nil),
 			"secret_key":      tftypes.NewValue(tftypes.String, nil),
 		}), Schema: resourceSchema}
@@ -130,17 +131,74 @@ func TestOrganizationApiKeyResourceCRUD(t *testing.T) {
 	})
 }
 
+func TestOrganizationApiKeyResourceCreateWithNote(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ctx := context.Background()
+
+	r, ok := NewOrganizationApiKeyResource().(*organizationApiKeyResource)
+	if !ok {
+		t.Fatalf("factory did not return *organizationApiKeyResource")
+	}
+
+	clientFactory := mocks.NewMockClientFactory(ctrl)
+	var configureResp resource.ConfigureResponse
+	r.Configure(ctx, resource.ConfigureRequest{ProviderData: clientFactory}, &configureResp)
+
+	var schemaResp resource.SchemaResponse
+	r.Schema(ctx, resource.SchemaRequest{}, &schemaResp)
+	resourceSchema := schemaResp.Schema
+
+	noteAttr, ok := resourceSchema.Attributes["note"].(resschema.StringAttribute)
+	if !ok || !noteAttr.Optional || len(noteAttr.PlanModifiers) == 0 {
+		t.Fatalf("'note' must be an optional string that forces replacement")
+	}
+
+	orgID := "org-123"
+	note := "created-by: terraform"
+
+	clientFactory.AdminClient.EXPECT().
+		CreateOrganizationApiKey(ctx, orgID, &langfuse.CreateOrganizationApiKeyRequest{Note: &note}).
+		Return(&langfuse.OrganizationApiKey{ID: "oak-123", PublicKey: "pk-1234", SecretKey: "sk-1234", Note: &note}, nil)
+
+	createConfig := tfsdk.Config{Raw: buildOrgApiKeyObjectValue(map[string]tftypes.Value{
+		"id":              tftypes.NewValue(tftypes.String, nil),
+		"organization_id": tftypes.NewValue(tftypes.String, orgID),
+		"note":            tftypes.NewValue(tftypes.String, note),
+		"public_key":      tftypes.NewValue(tftypes.String, nil),
+		"secret_key":      tftypes.NewValue(tftypes.String, nil),
+	}), Schema: resourceSchema}
+
+	var createResp resource.CreateResponse
+	createResp.State.Schema = resourceSchema
+	r.Create(ctx, resource.CreateRequest{Config: createConfig}, &createResp)
+	if createResp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics from Create: %v", createResp.Diagnostics)
+	}
+
+	var got organizationApiKeyResourceModel
+	createResp.State.Get(ctx, &got)
+	if got.Note.ValueString() != note {
+		t.Fatalf("unexpected note in state. got %q, want %q", got.Note.ValueString(), note)
+	}
+}
+
 func buildOrgApiKeyObjectValue(values map[string]tftypes.Value) tftypes.Value {
 	return tftypes.NewValue(
 		tftypes.Object{
 			AttributeTypes: map[string]tftypes.Type{
 				"id":              tftypes.String,
 				"organization_id": tftypes.String,
+				"note":            tftypes.String,
 				"public_key":      tftypes.String,
 				"secret_key":      tftypes.String,
 			},
 			OptionalAttributes: map[string]struct{}{
 				"id":         {},
+				"note":       {},
 				"public_key": {},
 				"secret_key": {},
 			},
