@@ -3,9 +3,11 @@ package langfuse
 import "net/http"
 
 type clientFactoryImpl struct {
-	host        string
-	adminApiKey string
-	httpClient  *http.Client
+	host                   string
+	adminApiKey            string
+	organizationPublicKey  string
+	organizationPrivateKey string
+	httpClient             *http.Client
 }
 
 type ClientFactory interface {
@@ -13,13 +15,17 @@ type ClientFactory interface {
 	NewOrganizationClient(publicKey, privateKey string) OrganizationClient
 	NewLlmConnectionsClient(publicKey, privateKey string) LlmConnectionsClient
 	NewEvaluatorsClient(publicKey, secretKey string) EvaluatorsClient
+	// OrganizationKeys returns the provider-level organization API keys, empty when not configured.
+	OrganizationKeys() (publicKey, privateKey string)
 }
 
-func NewClientFactory(host, adminApiKey, tlsServerName string) ClientFactory {
+func NewClientFactory(host, adminApiKey, organizationPublicKey, organizationPrivateKey, tlsServerName string) ClientFactory {
 	return &clientFactoryImpl{
-		host:        host,
-		adminApiKey: adminApiKey,
-		httpClient:  newHTTPClient(tlsServerName),
+		host:                   host,
+		adminApiKey:            adminApiKey,
+		organizationPublicKey:  organizationPublicKey,
+		organizationPrivateKey: organizationPrivateKey,
+		httpClient:             newHTTPClient(tlsServerName),
 	}
 }
 
@@ -37,4 +43,8 @@ func (cf *clientFactoryImpl) NewLlmConnectionsClient(publicKey, privateKey strin
 
 func (cf *clientFactoryImpl) NewEvaluatorsClient(publicKey, secretKey string) EvaluatorsClient {
 	return NewEvaluatorsClient(cf.host, publicKey, secretKey, cf.httpClient)
+}
+
+func (cf *clientFactoryImpl) OrganizationKeys() (string, string) {
+	return cf.organizationPublicKey, cf.organizationPrivateKey
 }

@@ -28,14 +28,40 @@ resource "langfuse_project" "my_project" {
 
 - `name` (String) The display name of the project.
 - `organization_id` (String) The ID of the organization that owns this project.
-- `organization_private_key` (String, Sensitive) Organization private key to authenticate the call.
-- `organization_public_key` (String, Sensitive) Organization public key to authenticate the call.
 
 ### Optional
 
 - `metadata` (Map of String) Metadata for the project as key-value pairs.
+- `organization_private_key` (String, Sensitive) Organization private key to authenticate the call. Defaults to the provider-level organization_private_key.
+- `organization_public_key` (String, Sensitive) Organization public key to authenticate the call. Defaults to the provider-level organization_public_key.
 - `retention_days` (Number) The retention period for the project in days. If not set, or set with a value of 0, data will be stored indefinitely.
 
 ### Read-Only
 
 - `id` (String) The ID of this resource.
+
+## Import
+
+Import is supported using the following syntax:
+
+In Terraform v1.5.0 and later, the [`import` block](https://developer.hashicorp.com/terraform/language/import) can be used with the `id` attribute, for example:
+
+```terraform
+import {
+  to = langfuse_project.my_project
+  id = "proj_123,org_456"
+}
+```
+
+The [`terraform import` command](https://developer.hashicorp.com/terraform/cli/commands/import) can be used, for example:
+
+```shell
+# Import with "<project_id>,<organization_id>". The organization keys come from the
+# provider's organization_public_key and organization_private_key (or the
+# LANGFUSE_ORGANIZATION_PUBLIC_KEY and LANGFUSE_ORGANIZATION_PRIVATE_KEY environment variables).
+#
+# Don't put the keys in the import ID: Terraform prints import IDs in plaintext.
+# The deprecated "<project_id>,<organization_id>,<organization_public_key>,<organization_private_key>"
+# format still works but raises a warning.
+terraform import langfuse_project.my_project "proj_123,org_456"
+```

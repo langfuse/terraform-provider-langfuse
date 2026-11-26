@@ -42,6 +42,7 @@ func (r *organizationApiKeyResource) Metadata(ctx context.Context, req resource.
 
 func (r *organizationApiKeyResource) Schema(ctx context.Context, req resource.SchemaRequest, resp *resource.SchemaResponse) {
 	resp.Schema = schema.Schema{
+		Description: "Manages an organization API key through the Instance Management API. Requires admin_api_key on the provider and a self-hosted Langfuse instance; not available on Langfuse Cloud. On Langfuse Cloud, create organization API keys in the organization settings instead.",
 		Attributes: map[string]schema.Attribute{
 			"id": schema.StringAttribute{
 				Computed: true,

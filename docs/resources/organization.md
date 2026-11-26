@@ -3,12 +3,12 @@
 page_title: "langfuse_organization Resource - Langfuse"
 subcategory: ""
 description: |-
-  
+  Manages a Langfuse organization through the Instance Management API. Requires admin_api_key on the provider and a self-hosted Langfuse instance; not available on Langfuse Cloud.
 ---
 
 # langfuse_organization (Resource)
 
-
+Manages a Langfuse organization through the Instance Management API. Requires admin_api_key on the provider and a self-hosted Langfuse instance; not available on Langfuse Cloud.
 
 
 
