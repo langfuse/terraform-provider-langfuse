@@ -2,8 +2,10 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/golang/mock/gomock"
 
@@ -285,6 +287,79 @@ func TestOrganizationResourceCRUD(t *testing.T) {
 			if actualValue, exists := actualMetadata[key]; !exists || actualValue != expectedValue {
 				t.Fatalf("unexpected metadata for key %q. got %q, want %q", key, actualValue, expectedValue)
 			}
+		}
+	})
+}
+
+func TestOrganizationResourceDeleteRetriesWhileProjectsClear(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	ctx := context.Background()
+	r := NewOrganizationResource().(*organizationResource)
+	clientFactory := mocks.NewMockClientFactory(ctrl)
+
+	var configureResp resource.ConfigureResponse
+	r.Configure(ctx, resource.ConfigureRequest{ProviderData: clientFactory}, &configureResp)
+	if configureResp.Diagnostics.HasError() {
+		t.Fatalf("unexpected diagnostics from Configure: %v", configureResp.Diagnostics)
+	}
+
+	var schemaResp resource.SchemaResponse
+	r.Schema(ctx, resource.SchemaRequest{}, &schemaResp)
+	resourceSchema := schemaResp.Schema
+
+	state := tfsdk.State{
+		Raw: buildObjectValue(map[string]tftypes.Value{
+			"id":       tftypes.NewValue(tftypes.String, "org-123"),
+			"name":     tftypes.NewValue(tftypes.String, "Acme Inc"),
+			"metadata": tftypes.NewValue(tftypes.Map{ElementType: tftypes.String}, map[string]tftypes.Value{}),
+		}),
+		Schema: resourceSchema,
+	}
+
+	// The client surfaces the API's 400 body verbatim (see internal/langfuse/utils.go).
+	existingProjectsErr := errors.New(
+		`request failed with status code 400, response body: ` +
+			`{"error":"Cannot delete organization with existing projects"}`,
+	)
+
+	origInterval, origTimeout := organizationDeletePollInterval, organizationDeleteTimeout
+	organizationDeletePollInterval = time.Millisecond
+	organizationDeleteTimeout = 5 * time.Second
+	defer func() {
+		organizationDeletePollInterval = origInterval
+		organizationDeleteTimeout = origTimeout
+	}()
+
+	t.Run("retries transient existing-projects error then succeeds", func(t *testing.T) {
+		gomock.InOrder(
+			clientFactory.AdminClient.EXPECT().DeleteOrganization(ctx, "org-123").Return(existingProjectsErr),
+			clientFactory.AdminClient.EXPECT().DeleteOrganization(ctx, "org-123").Return(existingProjectsErr),
+			clientFactory.AdminClient.EXPECT().DeleteOrganization(ctx, "org-123").Return(nil),
+		)
+
+		var deleteResp resource.DeleteResponse
+		deleteResp.State.Schema = resourceSchema
+		r.Delete(ctx, resource.DeleteRequest{State: state}, &deleteResp)
+
+		if deleteResp.Diagnostics.HasError() {
+			t.Fatalf("expected Delete to succeed once projects cleared, got: %v", deleteResp.Diagnostics)
+		}
+	})
+
+	t.Run("errors instead of orphaning when projects never clear", func(t *testing.T) {
+		organizationDeleteTimeout = time.Nanosecond // force a timeout after the first attempt
+		clientFactory.AdminClient.EXPECT().DeleteOrganization(ctx, "org-123").Return(existingProjectsErr)
+
+		var deleteResp resource.DeleteResponse
+		deleteResp.State.Schema = resourceSchema
+		r.Delete(ctx, resource.DeleteRequest{State: state}, &deleteResp)
+
+		if !deleteResp.Diagnostics.HasError() {
+			t.Fatalf("expected Delete to error on timeout so the org stays in state, got no error diagnostics")
 		}
 	})
 }
