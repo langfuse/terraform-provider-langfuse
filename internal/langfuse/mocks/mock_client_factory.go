@@ -9,6 +9,7 @@ type mockClientFactory struct {
 	AdminClient          *MockAdminClient
 	OrganizationClient   *MockOrganizationClient
 	LlmConnectionsClient *MockLlmConnectionsClient
+	EvaluatorsClient     *MockEvaluatorsClient
 
 	// Provider-level organization keys returned by OrganizationKeys.
 	DefaultOrganizationPublicKey  string
@@ -24,6 +25,7 @@ func NewMockClientFactory(ctrl *gomock.Controller) *mockClientFactory {
 		AdminClient:          NewMockAdminClient(ctrl),
 		OrganizationClient:   NewMockOrganizationClient(ctrl),
 		LlmConnectionsClient: NewMockLlmConnectionsClient(ctrl),
+		EvaluatorsClient:     NewMockEvaluatorsClient(ctrl),
 	}
 }
 
@@ -39,6 +41,10 @@ func (cf *mockClientFactory) NewOrganizationClient(publicKey, privateKey string)
 
 func (cf *mockClientFactory) NewLlmConnectionsClient(publicKey, privateKey string) langfuse.LlmConnectionsClient {
 	return cf.LlmConnectionsClient
+}
+
+func (cf *mockClientFactory) NewEvaluatorsClient(publicKey, secretKey string) langfuse.EvaluatorsClient {
+	return cf.EvaluatorsClient
 }
 
 func (cf *mockClientFactory) OrganizationKeys() (string, string) {

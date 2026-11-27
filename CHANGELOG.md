@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Resource: `langfuse_evaluator`**
+  - Create, read, update, delete and import evaluators via the stable `/api/public/v2/evaluators` API
+  - Supports `llm_as_judge` (prompt, model config, default variable mapping, structured output definition) and `code` (source code and runtime language) evaluators
+  - Definition changes create a new version on the same stable `id`; name/description changes do not
+  - Computed `version`, `version_id`, `status` and `variables` attributes
+- **Resource: `langfuse_evaluation_rule`**
+  - Create, read, update, delete and import evaluation rules via the stable `/api/public/v2/evaluation-rules` API
+  - Typed `filter` conditions, `sampling`, `enabled`, and `evaluator_assignments` with optional per-rule variable mapping overrides
+- Acceptance test coverage for both resources; the docker compose test stack now seeds a project with fixed API keys so project-scoped resources can be tested without an enterprise license
+
 ## [0.1.0] - 2025-08-26
 
 ### Added
