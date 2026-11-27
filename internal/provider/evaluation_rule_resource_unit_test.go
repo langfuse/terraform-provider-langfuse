@@ -284,7 +284,7 @@ func TestEvaluationRuleResource_Read_NotFound(t *testing.T) {
 	}
 }
 
-func TestEvaluationRuleResource_Read_PreservesNumericSpelling(t *testing.T) {
+func TestEvaluationRuleResource_Read_PreservesValueSpelling(t *testing.T) {
 	t.Parallel()
 
 	ctrl := gomock.NewController(t)
@@ -297,6 +297,7 @@ func TestEvaluationRuleResource_Read_PreservesNumericSpelling(t *testing.T) {
 	state.ID = types.StringValue("rule-1")
 	filters, _ := types.ListValueFrom(ctx, ruleFilterObjectType, []ruleFilterModel{
 		filterModel("number", "latency", "", ">=", "2.0", nil),
+		filterModel("boolean", "bookmarked", "", "=", "TRUE", nil),
 	})
 	state.Filter = filters
 	assignments, _ := types.ListValueFrom(ctx, evaluatorAssignmentObjectType, []evaluatorAssignmentModel{
@@ -308,7 +309,10 @@ func TestEvaluationRuleResource_Read_PreservesNumericSpelling(t *testing.T) {
 		GetEvaluationRule(ctx, "rule-1").
 		Return(&langfuse.EvaluationRule{
 			ID: "rule-1", Name: "Production generations", Enabled: true, Sampling: 0.5,
-			Filter:               []langfuse.EvaluationRuleFilter{{Type: "number", Column: "latency", Operator: ">=", Value: float64(2)}},
+			Filter: []langfuse.EvaluationRuleFilter{
+				{Type: "number", Column: "latency", Operator: ">=", Value: float64(2)},
+				{Type: "boolean", Column: "bookmarked", Operator: "=", Value: true},
+			},
 			EvaluatorAssignments: []langfuse.EvaluatorAssignment{{EvaluatorID: "ev-1"}},
 		}, nil)
 
@@ -323,7 +327,7 @@ func TestEvaluationRuleResource_Read_PreservesNumericSpelling(t *testing.T) {
 		t.Fatalf("unexpected diagnostics getting state: %v", diags)
 	}
 	if !model.Filter.Equal(state.Filter) {
-		t.Errorf("numeric spelling \"2.0\" must be preserved when the API returns 2\nstate: %v\nread:  %v", state.Filter, model.Filter)
+		t.Errorf("spellings \"2.0\" and \"TRUE\" must be preserved when the API returns 2 and true\nstate: %v\nread:  %v", state.Filter, model.Filter)
 	}
 }
 

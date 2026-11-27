@@ -555,8 +555,9 @@ func ruleFilterToAPI(ctx context.Context, f ruleFilterModel) (langfuse.Evaluatio
 }
 
 // ruleFilterFromAPI converts a stored filter back into the resource model. The
-// prior model, when present, preserves the user's spelling of numeric values
-// (for example "1.0") when it denotes the same number the API returned.
+// prior model, when present, preserves the user's spelling of numeric and
+// boolean values (for example "1.0" or "TRUE") when it denotes the same value
+// the API returned.
 func ruleFilterFromAPI(f langfuse.EvaluationRuleFilter, prior *ruleFilterModel) ruleFilterModel {
 	model := ruleFilterModel{
 		Type:     types.StringValue(f.Type),
@@ -584,7 +585,13 @@ func ruleFilterFromAPI(f langfuse.EvaluationRuleFilter, prior *ruleFilterModel) 
 		}
 		model.Value = types.StringValue(formatted)
 	case bool:
-		model.Value = types.StringValue(strconv.FormatBool(v))
+		formatted := strconv.FormatBool(v)
+		if prior != nil && !prior.Value.IsNull() && !prior.Value.IsUnknown() {
+			if p, err := strconv.ParseBool(prior.Value.ValueString()); err == nil && p == v {
+				formatted = prior.Value.ValueString()
+			}
+		}
+		model.Value = types.StringValue(formatted)
 	case []any:
 		values := make([]string, 0, len(v))
 		for _, item := range v {
